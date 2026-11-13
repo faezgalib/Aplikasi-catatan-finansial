@@ -1,5 +1,5 @@
 // Penyimpanan data di localStorage (data hanya ada di perangkat ini).
-import { DEFAULT_CATEGORIES } from './defaults.js';
+import { DEFAULT_CATEGORIES, DEFAULT_FIXED_ITEMS } from './defaults.js';
 
 const KEY = 'catfin.v1';
 
@@ -18,7 +18,7 @@ function defaultBudget(categories) {
 function freshState() {
   const categories = structuredClone(DEFAULT_CATEGORIES);
   return {
-    version: 1,
+    version: 2,
     settings: { apiKey: '', smallNumberThousands: true, aiMode: 'unknown' },
     categories,
     months: {},
@@ -40,7 +40,20 @@ export function load() {
   state.learned ||= {};
   state.transactions ||= [];
   state.months ||= {};
+  migrate();
   return state;
+}
+
+// v1 -> v2: fixed cost ditandai per item (bukan per kategori), sesuai rumus Excel.
+function migrate() {
+  if ((state.version || 1) >= 2) return;
+  const ids = new Set(DEFAULT_FIXED_ITEMS);
+  for (const c of state.categories || []) {
+    if (c.type === 'fixed') c.type = 'variable';
+    for (const it of c.items) if (it.fixed === undefined) it.fixed = ids.has(it.id);
+  }
+  state.version = 2;
+  save();
 }
 
 export function save() {
@@ -120,6 +133,10 @@ export function summarize(key) {
   const totalActual = cats.reduce((s, c) => s + c.actual, 0);
   const byType = (type) => cats.filter((c) => c.type === type).reduce((s, c) => s + c.actual, 0);
   const ratio = (v) => (incomeActual > 0 ? v / incomeActual : null);
+  const fixedItems = cats.flatMap((c) => c.items.filter((i) => i.fixed));
+  const fixedActual = fixedItems.reduce((a, i) => a + i.actual, 0);
+  const fixedProjected = fixedItems.reduce((a, i) => a + i.projected, 0);
+  const foodActual = byType('food');
 
   return {
     key, month: m, cats, tx,
@@ -129,8 +146,10 @@ export function summarize(key) {
     projectedBalance: incomeProjected - totalProjected,
     balanceDiff: (incomeActual - totalActual) - (incomeProjected - totalProjected),
     savingRatio: ratio(byType('saving')),
-    fixedRatio: ratio(byType('fixed')),
-    foodRatio: ratio(byType('food')),
+    fixedActual, fixedProjected,
+    fixedRatio: ratio(fixedActual),
+    foodActual,
+    foodRatio: ratio(foodActual),
     savingActual: byType('saving'),
   };
 }

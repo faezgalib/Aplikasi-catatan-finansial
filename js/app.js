@@ -143,8 +143,8 @@ function renderDashboard() {
       ${kpi('Saldo bulan ini', formatRp(s.balance), 'Pemasukan − pengeluaran', s.balance < 0 ? 'bad' : 'good')}
       ${kpi('Selisih pengeluaran', formatRp(s.expenseDiff), 'Proyeksi − aktual', s.expenseDiff < 0 ? 'bad' : 'good')}
       ${kpi('Saving to income', pct(s.savingRatio), formatRp(s.savingActual))}
-      ${kpi('Fixed cost (non food)', pct(s.fixedRatio), 'dari pemasukan')}
-      ${kpi('Food & groceries', pct(s.foodRatio), 'dari pemasukan')}
+      ${kpi('Fixed cost (non food)', formatRp(s.fixedActual), `${pct(s.fixedRatio)} dari pemasukan`)}
+      ${kpi('Food & groceries', formatRp(s.foodActual), `${pct(s.foodRatio)} dari pemasukan`)}
       ${kpi('Saldo tabungan awal', formatRp(s.month.prevBalance || 0), 'Isi di menu Budget')}
     </div>
 
@@ -511,14 +511,14 @@ function renderBudget() {
         const sum = c.items.reduce((b, i) => b + Number(m.budget[i.id] || 0), 0);
         return `<details class="budget-cat" data-cat="${c.id}">
           <summary><span>${esc(c.name)}</span><span class="num">${formatRp(sum)}</span></summary>
-          ${c.items.map((i) => `<div class="budget-item"><span>${esc(i.name)}</span><input class="num bud" data-item="${i.id}" inputmode="numeric" value="${fmtInput(m.budget[i.id])}" placeholder="0"></div>`).join('')}
+          ${c.items.map((i) => `<div class="budget-item"><span>${esc(i.name)}${i.fixed ? ' <span class="badge">Fixed</span>' : ''}</span><input class="num bud" data-item="${i.id}" inputmode="numeric" value="${fmtInput(m.budget[i.id])}" placeholder="0"></div>`).join('')}
           <div class="cat-edit">
             <div class="row2">
               <label>Nama kategori<input class="cname" value="${esc(c.name)}"></label>
               <label>Jenis<select class="ctype">${Object.entries(CATEGORY_TYPES).map(([k, v]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
             </div>
-            <p class="hint">Item & kata kunci (pisahkan dengan koma). Kata kunci dipakai untuk mengenali catatan.</p>
-            ${c.items.map((i) => `<div class="item-edit" data-item="${i.id}"><input class="iname2" value="${esc(i.name)}" aria-label="Nama item"><input class="ikw" value="${esc((i.keywords || []).join(', '))}" placeholder="kata kunci" aria-label="Kata kunci"><button class="btn ghost danger idel" aria-label="Hapus item">×</button></div>`).join('')}
+            <p class="hint">Item & kata kunci (pisahkan dengan koma). Kata kunci dipakai untuk mengenali catatan. Centang <b>Fixed cost</b> untuk item yang dihitung di Fixed Cost (Non Food).</p>
+            ${c.items.map((i) => `<div class="item-edit" data-item="${i.id}"><input class="iname2" value="${esc(i.name)}" aria-label="Nama item"><input class="ikw" value="${esc((i.keywords || []).join(', '))}" placeholder="kata kunci" aria-label="Kata kunci"><label class="check ifix-wrap"><input type="checkbox" class="ifix" ${i.fixed ? 'checked' : ''}> Fixed cost</label><button class="btn ghost danger idel" aria-label="Hapus item">×</button></div>`).join('')}
             <div class="btn-row"><button class="btn addItem">+ Item</button><span class="spacer"></span><button class="btn ghost danger delCat">Hapus kategori</button></div>
           </div>
         </details>`;
@@ -557,6 +557,7 @@ function renderBudget() {
       const it = c.items.find((i) => i.id === row.dataset.item);
       $('.iname2', row).onchange = (e) => { it.name = e.target.value.trim() || it.name; saveQuiet(); };
       $('.ikw', row).onchange = (e) => { it.keywords = e.target.value.split(',').map((s) => s.trim()).filter(Boolean); saveQuiet(); };
+      $('.ifix', row).onchange = (e) => { it.fixed = e.target.checked; saveQuiet(); };
       $('.idel', row).onclick = () => {
         if (st.transactions.some((t) => t.itemId === it.id)) return toast('Item ini sudah punya transaksi. Pindahkan dulu transaksinya.');
         if (c.items.length === 1) return toast('Kategori minimal punya satu item.');

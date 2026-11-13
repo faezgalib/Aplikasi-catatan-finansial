@@ -38,8 +38,8 @@ function monthSheetRows(key) {
     ['BALANCE DIFFERENCE (actual - projected)', '', '', s.balanceDiff],
     [],
     ['Saving to Income Ratio', '', '', pct(s.savingRatio)],
-    ['Fixed Cost (Non Food) to Income', '', '', pct(s.fixedRatio)],
-    ['Food and Groceries to Income', '', '', pct(s.foodRatio)],
+    ['Fixed Cost (Non Food)', '', s.fixedActual, pct(s.fixedRatio)],
+    ['Food and Groceries', '', s.foodActual, pct(s.foodRatio)],
     [],
   );
   for (const c of s.cats) {

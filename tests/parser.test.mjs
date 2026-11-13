@@ -56,3 +56,11 @@ test('kategori sesuai sheet Groceries & Education', () => {
   assert.equal(categorize('Kumon bulan nov', C).itemId, 'les');
   assert.equal(categorize('Buku tulis', C).itemId, 'buku-atk');
 });
+
+test('kategori sesuai sheet Transport & Lain-lain', () => {
+  assert.equal(categorize('Cuci mobil', C).itemId, 'cuci-mobil');
+  assert.equal(categorize('Tol jagorawi', C).itemId, 'parkir-tol');
+  assert.equal(categorize('Perpanjang SIM', C).itemId, 'dokumen');
+  assert.equal(categorize('Kado kondangan', C).itemId, 'kado-kondangan');
+  assert.equal(categorize('Grab food', C).itemId, 'dining-out');
+});

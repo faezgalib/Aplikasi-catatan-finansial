@@ -47,3 +47,12 @@ test('kategori dari kata kunci dan hasil belajar', () => {
   assert.equal(r.itemId, 'dining-out');
   assert.equal(r.source, 'learned');
 });
+
+test('kategori sesuai sheet Groceries & Education', () => {
+  assert.equal(categorize('Naga belanja 2 bulanan', C).itemId, 'naga-bulanan');
+  assert.equal(categorize('Sabun cuci piring', C).itemId, 'rumah-tangga');
+  assert.equal(categorize('Les renang', C).itemId, 'les');
+  assert.equal(categorize('Tahsin', C).itemId, 'les');
+  assert.equal(categorize('Kumon bulan nov', C).itemId, 'les');
+  assert.equal(categorize('Buku tulis', C).itemId, 'buku-atk');
+});

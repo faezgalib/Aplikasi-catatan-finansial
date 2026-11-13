@@ -38,22 +38,21 @@ export const DEFAULT_CATEGORIES = [
   },
   {
     id: 'groceries', name: 'Groceries', type: 'food', items: [
-      { id: 'supermarket', name: 'Supermarket / Minimarket', budget: 0, keywords: ['indomaret', 'alfamart', 'alfamidi', 'superindo', 'hypermart', 'transmart', 'lotte', 'giant', 'hero', 'ranch market', 'belanja bulanan', 'supermarket'] },
-      { id: 'rumah-tangga', name: 'Kebutuhan Rumah Tangga', budget: 0, keywords: ['sabun', 'deterjen', 'detergen', 'tisu', 'tissue', 'pampers', 'popok', 'shampoo', 'sampo', 'pasta gigi', 'odol', 'sunlight', 'rinso'] },
-      { id: 'buah-snack', name: 'Buah & Snack', budget: 0, keywords: ['buah', 'snack', 'cemilan', 'camilan', 'roti', 'susu'] },
+      { id: 'rumah-tangga', name: 'Kebutuhan Rumah: Sabun dll (selain makanan)', budget: 2000000, keywords: ['sabun', 'sabun cuci', 'deterjen', 'detergen', 'tisu', 'tissue', 'pampers', 'popok', 'shampoo', 'sampo', 'pasta gigi', 'odol', 'sunlight', 'rinso', 'pewangi', 'pembersih', 'cleaning wipes', 'kebutuhan rumah'] },
+      { id: 'naga-bulanan', name: 'Naga Belanja 2 Bulanan', budget: 0, keywords: ['naga', 'belanja bulanan', 'belanja 2 bulanan', 'indomaret', 'alfamart', 'alfamidi', 'superindo', 'hypermart', 'transmart', 'lotte', 'giant', 'hero', 'ranch market', 'supermarket'] },
     ],
   },
   {
     id: 'education', name: 'Education', type: 'fixed', items: [
-      { id: 'spp', name: 'SPP / Uang Sekolah', budget: 0, keywords: ['spp', 'uang sekolah', 'sekolah', 'uang pangkal', 'daycare'] },
-      { id: 'les', name: 'Les / Kursus', budget: 0, keywords: ['les', 'kursus', 'bimbel', 'course', 'udemy'] },
-      { id: 'buku-atk', name: 'Buku & Alat Tulis', budget: 0, keywords: ['buku', 'atk', 'alat tulis', 'pensil', 'seragam'] },
+      { id: 'spp', name: 'Sekolah Anak Plus DKS 1 tahun, Masuk SD', budget: 2400000, keywords: ['spp', 'uang sekolah', 'sekolah', 'dks', 'masuk sd', 'uang pangkal', 'daycare'] },
+      { id: 'les', name: 'Les (renang, Kumon, Miss Vee, Tahsin dll)', budget: 4790000, keywords: ['les', 'les renang', 'kumon', 'miss vee', 'tahsin', 'kursus', 'bimbel', 'course', 'udemy'] },
+      { id: 'buku-atk', name: 'Beli buku atau barang sejenis', budget: 0, keywords: ['buku', 'atk', 'alat tulis', 'pensil', 'seragam'] },
       { id: 'fotokopi', name: 'Photocopy, Print', budget: 0, keywords: ['fotokopi', 'fotocopy', 'photocopy', 'print', 'cetak', 'jilid'] },
     ],
   },
   {
     id: 'food', name: 'Food & Beverage', type: 'food', items: [
-      { id: 'bahan-pokok', name: 'Bahan Pokok ke Pasar (beras, daging, telur)', budget: 1500000, keywords: ['pasar', 'beras', 'daging', 'telur', 'ayam', 'ikan', 'sayur', 'sayuran', 'bumbu', 'minyak goreng', 'tahu', 'tempe'] },
+      { id: 'bahan-pokok', name: 'Bahan Pokok ke Pasar (beras, daging, telur)', budget: 1500000, keywords: ['pasar', 'beras', 'daging', 'telur', 'ayam', 'ikan', 'sayur', 'sayuran', 'bumbu', 'minyak goreng', 'tahu', 'tempe', 'roti', 'susu', 'buah'] },
       { id: 'dining-out', name: 'Dining Out / Order Online', budget: 2000000, keywords: ['makan', 'gofood', 'go food', 'grabfood', 'grab food', 'shopeefood', 'shopee food', 'resto', 'restoran', 'warung', 'bakso', 'nasi', 'padang', 'sate', 'mie', 'mcd', 'kfc', 'pizza', 'burger', 'martabak', 'soto', 'seafood', 'lunch', 'dinner', 'sarapan'] },
       { id: 'kopi', name: 'Kopi', budget: 200000, keywords: ['kopi', 'coffee', 'starbucks', 'kopken', 'kopi kenangan', 'janji jiwa', 'fore', 'tomoro', 'latte', 'americano'] },
     ],
@@ -85,7 +84,7 @@ export const DEFAULT_CATEGORIES = [
   {
     id: 'donations', name: 'Presents & Donations', type: 'variable', items: [
       { id: 'sedekah', name: 'Sedekah', budget: 7000000, keywords: ['sedekah', 'infaq', 'infak', 'zakat', 'donasi', 'masjid', 'wakaf', 'santunan', 'yatim'] },
-      { id: 'tahseel', name: 'Tahseel', budget: 0, keywords: ['tahseel', 'tahsin', 'ngaji', 'mengaji', 'tpa', 'ustadz', 'ustad'] },
+      { id: 'tahseel', name: 'Tahseel', budget: 0, keywords: ['tahseel'] },
     ],
   },
   {

@@ -1,5 +1,5 @@
 // Service worker: simpan file aplikasi agar bisa dibuka tanpa internet.
-const CACHE = 'catfin-v1';
+const CACHE = 'catfin-v2';
 const ASSETS = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/app.js', 'js/parser.js', 'js/store.js', 'js/defaults.js', 'js/export.js', 'js/ai.js',

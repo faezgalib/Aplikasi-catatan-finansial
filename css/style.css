@@ -219,7 +219,8 @@ label.check input { width: 20px; min-height: 20px; height: 20px; margin: 0; }
 .income-row .x { border: 0; background: none; color: var(--bad); font-size: 20px; cursor: pointer; min-height: 44px; }
 @media (max-width: 520px) { .income-row { grid-template-columns: 1fr 1fr; } .income-row .x { grid-column: 2; justify-self: end; } }
 .cat-edit { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
-.cat-edit .item-edit { display: grid; grid-template-columns: 1fr 1.4fr 36px; gap: 6px; margin-bottom: 6px; }
+.cat-edit .item-edit { display: grid; grid-template-columns: 1fr 1.4fr auto 36px; gap: 6px; margin-bottom: 6px; align-items: center; }
+.cat-edit .ifix-wrap { margin: 0; white-space: nowrap; font-size: 13px; }
 @media (max-width: 520px) { .cat-edit .item-edit { grid-template-columns: 1fr; } }
 
 /* Dialog */

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#244a55"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#3b6b78" stroke-width="64"/>
+  <path d="M256 106 A150 150 0 0 1 398 302" fill="none" stroke="#eda100" stroke-width="64"/>
+  <path d="M398 302 A150 150 0 0 1 220 402" fill="none" stroke="#1baf7a" stroke-width="64"/>
+  <text x="256" y="292" font-family="Arial, sans-serif" font-size="104" font-weight="700" fill="#ffffff" text-anchor="middle">Rp</text>
+</svg>

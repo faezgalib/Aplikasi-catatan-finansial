@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Catatan Finansial</title>
+  <meta name="description" content="Catat pengeluaran dari notes, kategorikan otomatis, lihat dashboard bulanan.">
+  <meta name="theme-color" content="#244a55">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn" id="prevMonth" aria-label="Bulan sebelumnya">‹</button>
+    <div class="month-label">
+      <span id="monthLabel"></span>
+      <input type="month" id="monthPicker" aria-label="Pilih bulan">
+    </div>
+    <button class="icon-btn" id="nextMonth" aria-label="Bulan berikutnya">›</button>
+  </header>
+
+  <main id="app">
+    <section class="view" id="view-dashboard"></section>
+    <section class="view" id="view-input"></section>
+    <section class="view" id="view-tx"></section>
+    <section class="view" id="view-budget"></section>
+    <section class="view" id="view-settings"></section>
+  </main>
+
+  <nav class="bottomnav" aria-label="Menu utama">
+    <button data-view="dashboard"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8h8"/></svg></span><span>Dashboard</span></button>
+    <button data-view="input"><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span>Input Notes</span></button>
+    <button data-view="tx"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span><span>Transaksi</span></button>
+    <button data-view="budget"><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></span><span>Budget</span></button>
+    <button data-view="settings"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></span><span>Pengaturan</span></button>
+  </nav>
+
+  <dialog id="txDialog">
+    <form method="dialog" id="txForm" class="dialog-body">
+      <h3 id="txDialogTitle">Transaksi</h3>
+      <label>Keterangan <input name="desc" required autocomplete="off"></label>
+      <div class="row2">
+        <label>Jumlah (Rp) <input name="amount" inputmode="numeric" required autocomplete="off"></label>
+        <label>Tanggal <input name="date" type="date"></label>
+      </div>
+      <label>Kategori <select name="catId"></select></label>
+      <label>Item <select name="itemId"></select></label>
+      <label class="check"><input type="checkbox" name="learn" checked> Ingat kategori ini untuk catatan berikutnya</label>
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" id="txDelete">Hapus</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" id="txCancel">Batal</button>
+        <button type="submit" class="btn primary">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

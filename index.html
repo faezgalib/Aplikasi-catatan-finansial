@@ -3,6 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Keamanan: hanya boleh menjalankan kode dari situs ini sendiri, dan hanya boleh
+       mengirim data ke situs ini serta ke Anthropic (tombol Tanya AI). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
   <title>Catatan Finansial</title>
   <meta name="description" content="Catat pengeluaran dari notes, kategorikan otomatis, lihat dashboard bulanan.">
   <meta name="theme-color" content="#244a55">

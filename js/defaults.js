@@ -8,13 +8,13 @@
 export const DEFAULT_CATEGORIES = [
   {
     id: 'housing', name: 'Housing', type: 'variable', items: [
-      { id: 'mortgage', fixed: true, name: 'Mortgage / KPR', budget: 10000000, keywords: ['mortgage', 'kpr', 'cicilan rumah'] },
-      { id: 'gaji-mbak', fixed: true, name: 'Gaji Mbak', budget: 2000000, keywords: ['gaji mbak', 'mbak', 'art', 'asisten rumah tangga', 'pembantu'] },
+      { id: 'mortgage', recurring: true, fixed: true, name: 'Mortgage / KPR', budget: 10000000, keywords: ['mortgage', 'kpr', 'cicilan rumah'] },
+      { id: 'gaji-mbak', recurring: true, fixed: true, name: 'Gaji ART', budget: 2000000, keywords: ['gaji art', 'gaji mbak', 'mbak', 'art', 'asisten rumah tangga', 'pembantu'] },
       { id: 'listrik', fixed: true, name: 'Listrik', budget: 1500000, keywords: ['listrik', 'pln', 'token listrik', 'token'] },
       { id: 'gas', name: 'Gas Elpiji', budget: 0, keywords: ['gas', 'elpiji', 'lpg'] },
       { id: 'galon', fixed: true, name: 'Air Galon', budget: 300000, keywords: ['galon', 'air galon', 'aqua galon', 'le minerale galon'] },
-      { id: 'wifi', fixed: true, name: 'Wifi', budget: 376000, keywords: ['wifi', 'indihome', 'biznet', 'firstmedia', 'first media', 'myrepublic', 'internet rumah'] },
-      { id: 'keamanan', fixed: true, name: 'Keamanan / Iuran', budget: 300000, keywords: ['keamanan', 'satpam', 'iuran', 'ipl', 'iuran rt', 'sampah'] },
+      { id: 'wifi', recurring: true, fixed: true, name: 'Wifi', budget: 376000, keywords: ['wifi', 'indihome', 'biznet', 'firstmedia', 'first media', 'myrepublic', 'internet rumah'] },
+      { id: 'keamanan', recurring: true, fixed: true, name: 'Keamanan / Iuran', budget: 300000, keywords: ['keamanan', 'satpam', 'iuran', 'ipl', 'iuran rt', 'sampah'] },
       { id: 'maintenance', name: 'Maintenance / Perbaikan', budget: 0, keywords: ['maintenance', 'perbaikan', 'servis ac', 'service ac', 'tukang', 'renovasi', 'ledeng'] },
       { id: 'laundry', name: 'Laundry', budget: 0, keywords: ['laundry', 'londri', 'cuci baju', 'dry clean'] },
       { id: 'housing-other', name: 'Other', budget: 0, keywords: [] },
@@ -32,7 +32,7 @@ export const DEFAULT_CATEGORIES = [
   },  {
     id: 'others', name: 'Lain-lain', type: 'variable', items: [
       { id: 'kado-kondangan', name: 'Kado Kondangan', budget: 0, keywords: ['kado', 'kondangan', 'nikahan', 'hadiah', 'sumbangan'] },
-      { id: 'arisan', fixed: true, name: 'Arisan', budget: 750000, keywords: ['arisan'] },
+      { id: 'arisan', recurring: true, fixed: true, name: 'Arisan', budget: 750000, keywords: ['arisan'] },
       { id: 'nyukur', name: 'Nyukur', budget: 0, keywords: ['nyukur', 'cukur', 'potong rambut', 'barbershop', 'pangkas'] },
       { id: 'others-other', name: 'Lainnya', budget: 0, keywords: [] },
     ],
@@ -80,12 +80,12 @@ export const DEFAULT_CATEGORIES = [
       { id: 'fotokopi', name: 'Photocopy, Print', budget: 0, keywords: ['fotokopi', 'fotocopy', 'photocopy', 'print', 'cetak', 'jilid'] },
     ],
   },  {
-    id: 'savings', name: 'Savings / Investments', type: 'saving', items: [
+    id: 'savings', name: 'Savings / Investments', type: 'saving', overIsGood: true, items: [
       { id: 'tabungan', name: 'Nabung di Awal ke Rekening Terpisah', budget: 20000000, keywords: ['nabung', 'tabung', 'tabungan', 'rekening terpisah', 'transfer tabungan'] },
       { id: 'investasi', name: 'Investasi (Emas dll)', budget: 500000, keywords: ['investasi', 'emas', 'antam', 'logam mulia', 'reksadana', 'reksa dana', 'saham', 'deposito', 'sbn', 'sukuk', 'crypto', 'bitcoin'] },
     ],
   },  {
-    id: 'donations', name: 'Presents & Donations', type: 'variable', items: [
+    id: 'donations', name: 'Presents & Donations', type: 'variable', overIsGood: true, items: [
       { id: 'sedekah', name: 'Sedekah', budget: 7000000, keywords: ['sedekah', 'infaq', 'infak', 'zakat', 'donasi', 'masjid', 'wakaf', 'santunan', 'yatim'] },
       { id: 'tahseel', name: 'Tahseel', budget: 0, keywords: ['tahseel'] },
     ],
@@ -100,6 +100,11 @@ export const DEFAULT_CATEGORIES = [
   },];
 
 export const DEFAULT_FIXED_ITEMS = ['mortgage', 'gaji-mbak', 'listrik', 'galon', 'wifi', 'keamanan', 'bensin', 'parkir-tol', 'arisan', 'membership', 'subscriptions', 'spp', 'les'];
+
+// recurring: true = muncul di tombol "Isi transaksi rutin".
+export const DEFAULT_RECURRING_ITEMS = ['mortgage', 'gaji-mbak', 'wifi', 'keamanan', 'arisan'];
+// overIsGood: true = melebihi proyeksi itu bagus (tabungan, sedekah), bukan peringatan.
+export const DEFAULT_GOOD_CATEGORIES = ['savings', 'donations'];
 
 export const CATEGORY_TYPES = {
   food: 'Makanan & groceries',

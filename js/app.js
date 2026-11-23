@@ -3,6 +3,7 @@ import * as store from './store.js';
 import { CATEGORY_TYPES } from './defaults.js';
 import { exportExcel, monthLabel } from './export.js';
 import { categorizeWithAI } from './ai.js';
+import * as lock from './lock.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -191,6 +192,91 @@ function donutSVG(slices, total) {
   return `<svg viewBox="0 0 240 240" role="img" aria-label="Komposisi pengeluaran per kategori">${paths.join('')}</svg>`;
 }
 
+// ---------- tren antar bulan ----------
+const shortMonth = (k) => { const [y, m] = k.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'short' }); };
+const juta = (v) => `${(v / 1e6).toLocaleString('id-ID', { maximumFractionDigits: 1 })}jt`;
+function niceMax(v) {
+  if (v <= 0) return 1e6;
+  const p = 10 ** Math.floor(Math.log10(v));
+  return [1, 2, 2.5, 5, 10].map((f) => f * p).find((x) => x >= v);
+}
+
+function trendHTML() {
+  const data = store.trend(ui.month, 12);
+  if (data.length < 2) {
+    return `<div class="card"><h3>Tren antar bulan</h3><p class="hint">Grafik tren muncul setelah ada data minimal 2 bulan.</p></div>`;
+  }
+  // Grafik 1: pemasukan vs pengeluaran (batang berdampingan, satu sumbu Rupiah)
+  const W = 360, H = 170, L = 34, B = 140, T = 14;
+  const max = niceMax(Math.max(...data.flatMap((d) => [d.income, d.expense])));
+  const slot = (W - L - 4) / data.length;
+  const bw = Math.min(12, (slot - 6) / 2);
+  const yv = (v) => B - (v / max) * (B - T);
+  const grid = [0, 0.5, 1].map((f) => `<line x1="${L}" y1="${yv(max * f)}" x2="${W}" y2="${yv(max * f)}" class="grid"/><text x="${L - 4}" y="${yv(max * f) + 3}" class="ax" text-anchor="end">${f ? juta(max * f) : '0'}</text>`).join('');
+  const bars = data.map((d, i) => {
+    const x = L + i * slot + (slot - 2 * bw - 2) / 2;
+    const r = (v, xx, cls) => v > 0 ? `<rect x="${xx}" y="${yv(v)}" width="${bw}" height="${B - yv(v)}" rx="2" class="${cls}"/>` : '';
+    return `<g class="tbar ${d.key === ui.month ? 'cur' : ''}" data-i="${i}">
+      <rect x="${L + i * slot}" y="${T}" width="${slot}" height="${B - T + 16}" class="hit"/>
+      ${r(d.income, x, 'b-inc')}${r(d.expense, x + bw + 2, 'b-exp')}
+      <text x="${L + i * slot + slot / 2}" y="${B + 12}" class="ax" text-anchor="middle">${shortMonth(d.key)}</text></g>`;
+  }).join('');
+
+  // Grafik 2: saving ratio (garis, sumbu persen sendiri)
+  const H2 = 120, B2 = 96, T2 = 12;
+  const rmax = Math.max(0.5, ...data.map((d) => d.savingRatio || 0));
+  const ry = (v) => B2 - (v / rmax) * (B2 - T2);
+  const pts = data.map((d, i) => d.savingRatio == null ? null : [L + i * slot + slot / 2, ry(d.savingRatio), d]).filter(Boolean);
+  const grid2 = [0, 0.5, 1].map((f) => `<line x1="${L}" y1="${ry(rmax * f)}" x2="${W}" y2="${ry(rmax * f)}" class="grid"/><text x="${L - 4}" y="${ry(rmax * f) + 3}" class="ax" text-anchor="end">${Math.round(rmax * f * 100)}%</text>`).join('');
+  const last = pts[pts.length - 1];
+  const line = pts.length ? `<polyline points="${pts.map((p) => p.slice(0, 2).join(',')).join(' ')}" class="l-sav"/>${pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="${p[2].key === ui.month ? 4.5 : 3}" class="d-sav"><title>${shortMonth(p[2].key)}: ${pct(p[2].savingRatio)}</title></circle>`).join('')}${last ? `<text x="${last[0]}" y="${last[1] - 8}" class="lbl" text-anchor="end">${pct(last[2].savingRatio)}</text>` : ''}` : '';
+
+  const cmp = store.compareWithPrevious(ui.month);
+  const cmpRows = cmp.rows.map((r) => {
+    if (!r.delta) return `<tr><td>${esc(r.name)}</td><td class="num hide-sm">${formatRp(r.prev)}</td><td class="num">${formatRp(r.cur)}</td><td class="num">–</td></tr>`;
+    const up = r.delta > 0;
+    const good = r.overIsGood ? up : !up;
+    return `<tr><td>${esc(r.name)}</td><td class="num hide-sm">${formatRp(r.prev)}</td><td class="num">${formatRp(r.cur)}</td><td class="num ${good ? 'pos' : 'neg'}">${up ? '▲' : '▼'} ${formatRp(Math.abs(r.delta))}</td></tr>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <h3>Tren · pemasukan vs pengeluaran</h3>
+      <div class="legend-row"><span><i class="sw b-inc"></i>Pemasukan</span><span><i class="sw b-exp"></i>Pengeluaran</span></div>
+      <svg class="tchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pemasukan dan pengeluaran per bulan">${grid}${bars}</svg>
+      <p class="tinfo" id="tinfo">Ketuk batang untuk melihat angkanya.</p>
+      <table class="cat-table sr-table"><thead><tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Saving</th></tr></thead><tbody>
+        ${data.map((d) => `<tr><td>${esc(monthLabel(d.key))}</td><td class="num">${formatRp(d.income)}</td><td class="num">${formatRp(d.expense)}</td><td class="num">${pct(d.savingRatio)}</td></tr>`).join('')}
+      </tbody></table>
+      <button class="btn ghost small" id="toggleTrendTable">Lihat sebagai tabel</button>
+    </div>
+    <div class="card">
+      <h3>Tren · saving to income</h3>
+      <svg class="tchart" viewBox="0 0 ${W} ${H2}" role="img" aria-label="Saving ratio per bulan">${grid2}${line}</svg>
+    </div>
+    <div class="card">
+      <h3>Dibanding ${esc(monthLabel(cmp.prevKey))}</h3>
+      ${cmpRows ? `<table class="cat-table"><thead><tr><th>Kategori</th><th class="hide-sm">${esc(shortMonth(cmp.prevKey))}</th><th>${esc(shortMonth(ui.month))}</th><th>Perubahan</th></tr></thead><tbody>${cmpRows}</tbody></table>` : '<p class="hint">Belum ada data untuk dibandingkan.</p>'}
+      <p class="hint">Pengeluaran naik = merah, turun = hijau. Untuk kategori "melebihi = baik" (Savings, Donasi) kebalikannya.</p>
+    </div>`;
+}
+
+function bindTrend(el) {
+  const data = store.trend(ui.month, 12);
+  const info = $('#tinfo', el);
+  $$('.tbar', el).forEach((g) => {
+    const show = () => {
+      const d = data[+g.dataset.i];
+      $$('.tbar', el).forEach((x) => x.classList.toggle('on', x === g));
+      info.innerHTML = `<b>${esc(monthLabel(d.key))}</b> · Pemasukan <b class="num">${formatRp(d.income)}</b> · Pengeluaran <b class="num">${formatRp(d.expense)}</b> · Saldo <b class="num ${d.income - d.expense < 0 ? 'neg' : 'pos'}">${formatRp(d.income - d.expense)}</b>`;
+    };
+    g.addEventListener('mouseenter', show);
+    g.addEventListener('click', show);
+  });
+  const tg = $('#toggleTrendTable', el);
+  if (tg) tg.onclick = () => { const t = $('.sr-table', el); t.classList.toggle('show'); tg.textContent = t.classList.contains('show') ? 'Sembunyikan tabel' : 'Lihat sebagai tabel'; };
+}
+
 function renderDashboard() {
   const s = store.summarize(ui.month);
   const colors = catColorMap(s);
@@ -277,8 +363,10 @@ function renderDashboard() {
           <tr class="cat-row"><td>Total</td><td class="num hide-sm">${formatRp(s.totalProjected)}</td><td class="num">${formatRp(s.totalActual)}</td><td class="num"><span class="pill ${s.expenseDiff < 0 ? 'neg' : 'pos'}">${formatRp(s.expenseDiff)}</span></td></tr>
         </tbody>
       </table>
-    </div>`;
+    </div>
+    ${trendHTML()}`;
 
+  bindTrend(el);
   const bb = $('#bannerBackup', el);
   if (bb) bb.onclick = shareBackup;
 
@@ -736,6 +824,18 @@ function renderSettings() {
     </div>
 
     <div class="card">
+      <h3>Kunci aplikasi (PIN)</h3>
+      <label class="check"><input type="checkbox" id="pinOn" ${lock.isEnabled() ? 'checked' : ''}> Minta PIN 6 digit saat aplikasi dibuka</label>
+      <label>Kunci lagi setelah ditinggal
+        <select id="pinAfter" ${lock.isEnabled() ? '' : 'disabled'}>
+          ${[[90, '90 detik'], [120, '2 menit'], [300, '5 menit']].map(([v, t]) => `<option value="${v}" ${lock.lockAfterSec() === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </label>
+      ${lock.isEnabled() ? '<div class="btn-row"><button class="btn" id="pinChange">Ubah PIN</button></div>' : ''}
+      <p class="hint">PIN salah 3 kali = tunggu 5 menit. Lupa PIN = data di perangkat ini harus dihapus, lalu dipulihkan dari backup. Tidak ada jalan pintas, jadi pastikan backup rutin.</p>
+    </div>
+
+    <div class="card">
       <h3>Pembacaan angka</h3>
       <label class="check"><input type="checkbox" id="smallK" ${st.settings.smallNumberThousands ? 'checked' : ''}> Angka di bawah 1.000 tanpa satuan dianggap ribuan (kopi 35 → Rp35.000)</label>
       <p class="hint">Riwayat koreksi kategori: <b>${Object.keys(st.learned).length}</b> entri. <button class="btn ghost" id="clearLearned">Hapus riwayat</button></p>
@@ -766,6 +866,15 @@ function renderSettings() {
   $('#apiKey', el).onchange = (e) => { st.settings.apiKey = e.target.value.trim(); store.save(); toast('API key disimpan.'); };
   $('#aiMode', el).onchange = (e) => { st.settings.aiMode = e.target.value; store.save(); };
   $('#smallK', el).onchange = (e) => { st.settings.smallNumberThousands = e.target.checked; store.save(); };
+  $('#pinOn', el).onchange = async (e) => {
+    const want = e.target.checked;
+    const ok = want ? await lock.enableFlow() : await lock.disableFlow();
+    toast(ok ? (want ? 'PIN aktif.' : 'PIN dimatikan.') : 'Dibatalkan.');
+    renderSettings();
+  };
+  $('#pinAfter', el).onchange = (e) => { lock.setLockAfter(Number(e.target.value)); toast('Tersimpan.'); };
+  const pc = $('#pinChange', el);
+  if (pc) pc.onclick = async () => { toast((await lock.changeFlow()) ? 'PIN diganti.' : 'Dibatalkan.'); };
   $('#clearLearned', el).onclick = () => { if (confirm('Hapus semua riwayat koreksi kategori?')) { st.learned = {}; store.save(); renderSettings(); } };
   $('#backup', el).onclick = () => { downloadBackup(); renderSettings(); };
   $('#shareBackup', el).onclick = shareBackup;
@@ -805,6 +914,15 @@ if (shared) {
   startView = 'input';
 }
 setView(startView);
+
+function forgotPin() {
+  if (!confirm('Lupa PIN?\n\nSatu-satunya cara: SEMUA data di perangkat ini dihapus, lalu Anda pulihkan dari file backup (Pengaturan → Restore backup).')) return;
+  if (!confirm('Yakin? Transaksi, budget, dan kategori di perangkat ini akan dihapus permanen.')) return;
+  store.resetAll();
+  lock.clearLock();
+  location.reload();
+}
+lock.initAutoLock(forgotPin);
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -1,8 +1,8 @@
 // Service worker: simpan file aplikasi agar bisa dibuka tanpa internet.
-const CACHE = 'catfin-v4';
+const CACHE = 'catfin-v1.4';
 const ASSETS = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
-  'js/app.js', 'js/parser.js', 'js/store.js', 'js/defaults.js', 'js/export.js', 'js/ai.js', 'js/lock.js',
+  'js/app.js', 'js/parser.js', 'js/store.js', 'js/defaults.js', 'js/export.js', 'js/ai.js', 'js/lock.js', 'js/version.js',
   'vendor/xlsx.mini.min.js', 'vendor/anthropic-sdk.mjs',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
 ];

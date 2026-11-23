@@ -2,7 +2,7 @@ import { parseNotes, categorize, normalizeText, formatRp } from './parser.js';
 import * as store from './store.js';
 import { CATEGORY_TYPES } from './defaults.js';
 import { exportExcel, monthLabel } from './export.js';
-import { categorizeWithAI, readReceiptWithAI } from './ai.js';
+import { categorizeWithAI } from './ai.js';
 import * as lock from './lock.js';
 import { APP_VERSION, CHANGELOG } from './version.js';
 
@@ -422,8 +422,6 @@ function renderInput() {
       Semua masuk ke bulan <b>${esc(monthLabel(ui.month))}</b>.</p>
       <div class="quick-row">
         <button class="quick" id="recurBtn"><span class="quick-ico">↻</span><b>Isi transaksi rutin</b><small>${esc(st.categories.flatMap((c) => c.items.filter((i) => i.recurring).map((i) => i.name)).join(', ') || 'Belum ada item rutin. Centang "Rutin" di menu Budget.')}</small></button>
-        <label class="quick" id="receiptBtn"><span class="quick-ico">📷</span><b>Foto struk</b><small>Dibaca AI · butuh internet &amp; API key</small>
-          <input type="file" id="receiptFile" accept="image/*" capture="environment" hidden></label>
       </div>
       <div class="card">
         <label>Catatan
@@ -462,10 +460,6 @@ function renderInput() {
     };
     $('#manualBtn', el).onclick = () => openTxDialog(null);
     $('#recurBtn', el).onclick = startRecurring;
-    $('#receiptBtn', el).onclick = (e) => {
-      if (!st.settings.apiKey) { e.preventDefault(); toast('Foto struk butuh API key Claude. Isi di menu Pengaturan.', 4000); }
-    };
-    $('#receiptFile', el).onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) scanReceipt(f); };
     return;
   }
 
@@ -484,10 +478,7 @@ function renderInput() {
     : '<span class="badge none">Belum dikenali</span>';
 
   el.innerHTML = `
- ${ui.review.kind === 'struk' ? `<h2>Periksa hasil struk</h2>
-      <div class="receipt-head"><img src="${ui.review.thumb}" alt="Foto struk"><div><b>${esc(ui.review.merchant || 'Struk')}</b><br><small>${esc(ui.review.date || 'tanggal tidak terbaca')}${ui.review.itemCount ? ` · ${ui.review.itemCount} barang` : ''}</small></div></div>
-      <p class="hint">Periksa nama toko, total, dan kategori, lalu simpan.</p>`
-    : ui.review.kind === 'rutin'
+    ${ui.review.kind === 'rutin'
       ? `<h2>Transaksi rutin ${esc(monthLabel(ui.month))} (${rows.length})</h2><p class="hint">Nominal diambil dari aktual bulan lalu (atau proyeksi bila belum ada). Ubah bila berbeda, lalu simpan.</p>`
       : `<h2>Periksa hasil (${rows.length} baris)</h2><p class="hint">Periksa kategori, ubah bila perlu, lalu simpan. Kategori yang Anda ubah akan diingat untuk catatan berikutnya.</p>`}
     ${ui.review.skipped.length ? `<div class="card"><b>Dilewati (tidak ada angka):</b><br><small>${ui.review.skipped.map(esc).join(' · ')}</small></div>` : ''}
@@ -508,7 +499,7 @@ function renderInput() {
     <div class="summary-bar">
       <span>Pengeluaran <b class="num">${formatRp(sumExp)}</b>${sumInc ? ` · Pemasukan <b class="num">${formatRp(sumInc)}</b>` : ''}</span>
       <span class="spacer"></span>
-      <button class="btn ghost" id="backBtn">${ui.review.kind === 'rutin' ? 'Batal' : ui.review.kind === 'struk' ? 'Foto ulang' : '← Ubah notes'}</button>
+      <button class="btn ghost" id="backBtn">${ui.review.kind === 'rutin' ? 'Batal' : '← Ubah notes'}</button>
       ${unknown ? `<button class="btn" id="aiBtn">Tanya AI (${unknown})</button>` : ''}
       <button class="btn primary" id="saveBtn" ${unknown ? 'disabled' : ''}>Simpan ${included.length}</button>
     </div>
@@ -533,12 +524,7 @@ function renderInput() {
     const inc = $('.income-line', card);
     if (inc) { r.incomeId ||= inc.value; inc.value = r.incomeId; inc.onchange = () => { r.incomeId = inc.value; }; }
   });
-  $('#backBtn', el).onclick = () => {
-    const retake = ui.review.kind === 'struk';
-    if (ui.review.thumb) URL.revokeObjectURL(ui.review.thumb);
-    ui.review = null; renderInput();
-    if (retake) $('#receiptFile')?.click();
-  };
+  $('#backBtn', el).onclick = () => { ui.review = null; renderInput(); };
   const ai = $('#aiBtn', el);
   if (ai) ai.onclick = () => runAI(ai);
   $('#saveBtn', el).onclick = saveReview;
@@ -567,47 +553,6 @@ async function runAI(btn) {
 function maybeAutoAI() {
   const st = store.getState();
   if (st.settings.apiKey && st.settings.aiMode === 'auto' && ui.review.rows.some((r) => !r.isIncome && !r.catId)) runAI($('#aiBtn'));
-}
-
-// ---------- foto struk ----------
-async function shrinkImage(file, maxSide = 1568) {
-  // Perkecil foto di perangkat (lebih cepat & murah), hasilnya JPEG base64.
-  const bmp = await createImageBitmap(file);
-  const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
-  const c = document.createElement('canvas');
-  c.width = Math.round(bmp.width * scale);
-  c.height = Math.round(bmp.height * scale);
-  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-  bmp.close?.();
-  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
-}
-
-async function scanReceipt(file) {
-  const st = store.getState();
-  if (!st.settings.apiKey) return toast('Foto struk butuh API key Claude. Isi di menu Pengaturan.', 4000);
-  const el = $('#view-input');
-  el.innerHTML = '<div class="empty"><div class="spinner"></div><p><b>Membaca struk…</b><br><small>Biasanya beberapa detik.</small></p></div>';
-  try {
-    const b64 = await shrinkImage(file);
-    const r = await readReceiptWithAI(b64, st.categories, st.settings.apiKey);
-    if (!r.isReceipt) { renderInput(); return toast('Foto tidak terbaca sebagai struk. Coba foto ulang dengan cahaya cukup dan struk lurus.', 5000); }
-    // Riwayat koreksi tetap diutamakan bila nama toko pernah Anda kategorikan sendiri.
-    const learned = categorize(r.merchant, st.categories, st.learned);
-    const useLearned = learned.source === 'learned';
-    ui.review = {
-      kind: 'struk', skipped: [], thumb: URL.createObjectURL(file),
-      merchant: r.merchant, date: r.date, itemCount: r.itemCount,
-      rows: [{
-        desc: r.merchant || 'Struk', amount: r.total, date: r.date, include: true, raw: '',
-        catId: useLearned ? learned.catId : r.catId, itemId: useLearned ? learned.itemId : r.itemId,
-        source: useLearned ? 'learned' : r.catId ? 'ai' : 'none', touched: false,
-      }],
-    };
-  } catch (e) {
-    ui.review = null;
-    toast(`Gagal membaca struk: ${e.message || e}`, 5000);
-  }
-  renderInput();
 }
 
 function startRecurring() {
@@ -649,8 +594,7 @@ function saveReview() {
   }
   if (ui.review.kind === 'rutin' && nTx) month.recurringFilledAt = new Date().toISOString();
   store.save();
-  const wasNotes = !ui.review.kind;
-  if (ui.review.thumb) URL.revokeObjectURL(ui.review.thumb);
+  const wasNotes = ui.review.kind !== 'rutin';
   ui.review = null;
   if (wasNotes) { try { localStorage.removeItem('catfin.draft'); } catch {} }
   toast(`Tersimpan: ${nTx} transaksi${nInc ? `, ${nInc} pemasukan` : ''}.`);

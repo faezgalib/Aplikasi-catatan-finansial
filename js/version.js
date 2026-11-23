@@ -1,10 +1,7 @@
 // Versi aplikasi. Naikkan setiap rilis, dan tambahkan ringkasan di CHANGELOG (terbaru di atas).
-export const APP_VERSION = '1.5';
+export const APP_VERSION = '1.4';
 
 export const CHANGELOG = [
-  { v: '1.5', date: 'Nov 2026', items: [
-    'Foto struk: total belanja dibaca AI (butuh internet & API key), lalu diperiksa sebelum disimpan',
-  ] },
   { v: '1.4', date: 'Nov 2026', items: [
     'Tren antar bulan: grafik pemasukan vs pengeluaran, saving ratio, dan perbandingan dengan bulan lalu',
     'Kunci aplikasi dengan PIN 6 digit',

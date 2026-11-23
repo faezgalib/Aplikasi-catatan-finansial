@@ -4,6 +4,7 @@ import { CATEGORY_TYPES } from './defaults.js';
 import { exportExcel, monthLabel } from './export.js';
 import { categorizeWithAI } from './ai.js';
 import * as lock from './lock.js';
+import { APP_VERSION, CHANGELOG } from './version.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -78,6 +79,10 @@ async function shareBackup() {
   toast('Perangkat ini tidak mendukung share. Backup diunduh.');
   downloadBackup();
   render();
+}
+function needsBackup() {
+  const age = backupAgeDays();
+  return store.getState().transactions.length > 0 && (age === null || age > 7);
 }
 function backupAgeDays() {
   const t = store.getState().settings.lastBackupAt;
@@ -162,6 +167,7 @@ function setMonth(key) {
 }
 
 function renderHeader() {
+  document.querySelector('.bottomnav [data-view="settings"]').classList.toggle('dot', needsBackup());
   $('#monthLabel').textContent = monthLabel(ui.month);
   $('#monthPicker').value = ui.month;
 }
@@ -294,9 +300,6 @@ function renderDashboard() {
 
   const kpi = (label, value, sub = '', cls = '') => `<div class="kpi ${cls}"><div class="label">${label}</div><div class="value num">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
 
-  const st = store.getState();
-  const age = backupAgeDays();
-  const needBackup = st.transactions.length > 0 && (age === null || age > 7);
   const status = store.budgetStatus(s);
   const lv = {
     bad: (x) => ['bad', '!', `${formatRp(x.actual)} dari ${formatRp(x.projected)}`, 'neg', `${Math.round(x.ratio * 100)}%`],
@@ -306,20 +309,6 @@ function renderDashboard() {
   };
 
   el.innerHTML = `
-    ${needBackup ? `<div class="banner warn">
-      <div><b>${age === null ? 'Belum pernah backup' : `Backup terakhir ${age} hari lalu`}</b><br><small>Data hanya ada di perangkat ini.</small></div>
-      <button class="btn primary" id="bannerBackup">Bagikan backup</button>
-    </div>` : ''}
-
-    <div class="card">
-      <h3>Status budget</h3>
-      ${status.length ? `<ul class="status-list">${status.map((x) => {
-        const [ico, sym, sub, pill, val] = lv[x.level](x);
-        return `<li><span class="st-ico ${ico}">${sym}</span><span><b>${esc(x.name)}</b><br><small>${sub}</small></span><span class="pill ${pill} num">${val}</span></li>`;
-      }).join('')}</ul>` : '<p class="hint">Semua kategori masih di bawah 80% dari proyeksi.</p>'}
-      <p class="hint">Kuning ≥ 80%, merah ≥ 100% dari proyeksi. Kategori bertanda "melebihi = baik" (Savings, Donasi) tampil hijau.</p>
-    </div>
-
     <div class="kpis">
       ${kpi('Pemasukan aktual', formatRp(s.incomeActual), `Proyeksi ${formatRp(s.incomeProjected)}`)}
       ${kpi('Total pengeluaran', formatRp(s.totalActual), `Proyeksi ${formatRp(s.totalProjected)}`)}
@@ -364,11 +353,18 @@ function renderDashboard() {
         </tbody>
       </table>
     </div>
-    ${trendHTML()}`;
+    ${trendHTML()}
+
+    <div class="card">
+      <h3>Status budget</h3>
+      ${status.length ? `<ul class="status-list">${status.map((x) => {
+        const [ico, sym, sub, pill, val] = lv[x.level](x);
+        return `<li><span class="st-ico ${ico}">${sym}</span><span><b>${esc(x.name)}</b><br><small>${sub}</small></span><span class="pill ${pill} num">${val}</span></li>`;
+      }).join('')}</ul>` : '<p class="hint">Semua kategori masih di bawah 80% dari proyeksi.</p>'}
+      <p class="hint">Kuning ≥ 80%, merah ≥ 100% dari proyeksi. Kategori bertanda "melebihi = baik" (Savings, Donasi) tampil hijau.</p>
+    </div>`;
 
   bindTrend(el);
-  const bb = $('#bannerBackup', el);
-  if (bb) bb.onclick = shareBackup;
 
   // hover / tap pada donut & legend
   const donut = $('#donut', el);
@@ -843,7 +839,8 @@ function renderSettings() {
 
     <div class="card">
       <h3>Backup data</h3>
-      <p class="hint">Backup terakhir: <b>${st.settings.lastBackupAt ? `${new Date(st.settings.lastBackupAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} (${backupAgeDays()} hari lalu)` : 'belum pernah'}</b>. Pengingat muncul di Dashboard kalau lewat 7 hari.</p>
+      ${needsBackup() ? `<div class="banner warn"><div><b>${backupAgeDays() === null ? 'Belum pernah backup' : `Backup terakhir ${backupAgeDays()} hari lalu`}</b><br><small>Data hanya ada di perangkat ini. Bagikan backup sekarang.</small></div></div>` : ''}
+      <p class="hint">Backup terakhir: <b>${st.settings.lastBackupAt ? `${new Date(st.settings.lastBackupAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} (${backupAgeDays()} hari lalu)` : 'belum pernah'}</b>. Pengingat muncul di sini (dan titik merah di menu Pengaturan) kalau lewat 7 hari.</p>
       <div class="btn-row"><button class="btn primary" id="shareBackup">Bagikan backup (Gmail, WhatsApp, Drive…)</button></div>
       <div class="btn-row">
         <button class="btn" id="backup">Download backup</button>
@@ -853,6 +850,14 @@ function renderSettings() {
       </div>
       <p class="hint">File berformat .txt dan berisi seluruh data keuangan Anda tanpa enkripsi. Kirim hanya ke email atau Drive milik sendiri.
       Data hanya tersimpan di perangkat ini; jika data Chrome dihapus, data ikut hilang. Bulan tersimpan: ${monthsWithData.length ? monthsWithData.map(monthLabel).join(', ') : '–'}.</p>
+    </div>
+
+    <div class="card version">
+      <h3>Tentang aplikasi</h3>
+      <p><b>Catatan Finansial versi ${APP_VERSION}</b></p>
+      <details><summary>Riwayat versi</summary>
+        ${CHANGELOG.map((v) => `<p><b>${v.v}</b> · ${esc(v.date)}<br><small>${v.items.map(esc).join('<br>')}</small></p>`).join('')}
+      </details>
     </div>`;
 
   $$('[data-exp]', el).forEach((b) => (b.onclick = async () => {

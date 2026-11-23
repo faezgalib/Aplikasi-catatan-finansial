@@ -46,7 +46,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; }
+html, body { margin: 0; overscroll-behavior-y: none; } /* matikan tarik-untuk-memuat-ulang Chrome */
 body {
   background: var(--bg);
   color: var(--text);
@@ -293,3 +293,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 body.locked { overflow: hidden; }
 body.locked > :not(.lock):not(#toast) { visibility: hidden; }
 body.privacy > :not(.lock) { filter: blur(16px); }
+
+.bottomnav button { position: relative; }
+.bottomnav button.dot::after { content: ''; position: absolute; top: 6px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+.card.version details summary { cursor: pointer; color: var(--accent); }
+.card.version small { color: var(--text-2); }

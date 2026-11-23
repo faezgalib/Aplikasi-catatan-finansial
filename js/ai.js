@@ -98,3 +98,78 @@ export async function categorizeWithAI(entries, categories, apiKey) {
       return c && c.items.some((i) => i.id === r.itemId);
     });
 }
+
+/**
+ * Baca foto struk dengan Claude: nama toko, tanggal, total bayar, dan kategori yang paling cocok.
+ * @param {string} base64 gambar JPEG (tanpa awalan data:)
+ * @returns {Promise<{isReceipt:boolean, merchant:string, date:string, total:number, itemCount:number, catId:string|null, itemId:string|null}>}
+ */
+export async function readReceiptWithAI(base64, categories, apiKey) {
+  if (!apiKey) throw new Error('Isi API key Claude dulu di menu Pengaturan.');
+  const client = await getClient(apiKey);
+  const catalog = categories.map((c) => ({
+    category_id: c.id,
+    category: c.name,
+    items: c.items.map((i) => ({ item_id: i.id, name: i.name })),
+  }));
+
+  const response = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 16000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: {
+      effort: 'low',
+      format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          properties: {
+            is_receipt: { type: 'boolean' },
+            merchant: { type: 'string' },
+            date: { type: 'string', description: 'YYYY-MM-DD, or empty if not printed' },
+            total: { type: 'integer', description: 'Final amount paid in rupiah' },
+            item_count: { type: 'integer' },
+            category_id: { type: 'string' },
+            item_id: { type: 'string' },
+          },
+          required: ['is_receipt', 'merchant', 'date', 'total', 'item_count', 'category_id', 'item_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    system:
+      'You read photos of shopping receipts from Indonesia for a household budget app. ' +
+      'Return the store name (short, as printed, e.g. "Indomaret Cibubur"), the transaction date as YYYY-MM-DD, ' +
+      'and the final amount the customer paid in rupiah as an integer: use the TOTAL / GRAND TOTAL / TOTAL BAYAR line ' +
+      'after discounts and including tax, not the cash tendered and not the change (KEMBALI). ' +
+      'In Indonesian receipts a dot or comma between groups of three digits is a thousands separator. ' +
+      'Also pick the single best category_id and item_id for the whole purchase from the catalog. ' +
+      'If the image is not a receipt or the total is unreadable, set is_receipt to false and total to 0.',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+          { type: 'text', text: `Catalog:\n${JSON.stringify(catalog)}` },
+        ],
+      },
+    ],
+  });
+
+  if (response.stop_reason === 'refusal') throw new Error('AI menolak memproses foto ini. Masukkan secara manual.');
+  const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+  let r;
+  try { r = JSON.parse(text); } catch { throw new Error('Jawaban AI tidak bisa dibaca. Coba lagi.'); }
+  const cat = categories.find((c) => c.id === r.category_id);
+  const valid = cat && cat.items.some((i) => i.id === r.item_id);
+  return {
+    isReceipt: !!r.is_receipt && r.total > 0,
+    merchant: String(r.merchant || '').trim(),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : '',
+    total: Math.round(Number(r.total) || 0),
+    itemCount: Number(r.item_count) || 0,
+    catId: valid ? r.category_id : null,
+    itemId: valid ? r.item_id : null,
+  };
+}

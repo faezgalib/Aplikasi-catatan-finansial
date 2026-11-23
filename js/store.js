@@ -216,3 +216,45 @@ export function markBackup() {
   state.settings.lastBackupAt = new Date().toISOString();
   save();
 }
+
+/**
+ * Tren beberapa bulan terakhir sampai `endKey`. Bulan di awal yang belum punya data dilewati.
+ * @returns {Array<{key, income, expense, savingRatio, fixed}>}
+ */
+export function trend(endKey, n = 12) {
+  const [y, m] = endKey.split('-').map(Number);
+  const keys = [];
+  for (let i = n - 1; i >= 0; i--) keys.push(monthKey(new Date(y, m - 1 - i, 1)));
+  const has = (k) => state.transactions.some((t) => t.month === k) || (state.months[k]?.income || []).some((x) => Number(x.actual) > 0);
+  const first = keys.findIndex(has);
+  if (first < 0) return [];
+  return keys.slice(first).map((k) => {
+    if (!has(k)) return { key: k, income: 0, expense: 0, savingRatio: null, fixed: 0, empty: true };
+    const s = summarizeSilently(k);
+    return { key: k, income: s.incomeActual, expense: s.totalActual, savingRatio: s.savingRatio, fixed: s.fixedActual };
+  });
+}
+
+// summarize tanpa membuat data bulan baru (ensureMonth) untuk bulan yang belum ada
+function summarizeSilently(k) {
+  if (state.months[k]) return summarize(k);
+  const before = state.months[k];
+  const s = summarize(k);
+  if (!before) delete state.months[k];
+  return s;
+}
+
+/** Perbandingan aktual per kategori: bulan `key` vs bulan sebelumnya. */
+export function compareWithPrevious(key) {
+  const [y, m] = key.split('-').map(Number);
+  const prevKey = monthKey(new Date(y, m - 2, 1));
+  const cur = summarizeSilently(key), prev = summarizeSilently(prevKey);
+  return {
+    prevKey,
+    rows: cur.cats.map((c) => {
+      const p = prev.cats.find((x) => x.id === c.id)?.actual || 0;
+      const good = !!state.categories.find((x) => x.id === c.id)?.overIsGood;
+      return { id: c.id, name: c.name, prev: p, cur: c.actual, delta: c.actual - p, overIsGood: good };
+    }).filter((r) => r.prev || r.cur),
+  };
+}

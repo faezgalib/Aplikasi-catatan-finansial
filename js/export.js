@@ -101,5 +101,16 @@ export async function exportExcel(keys) {
   XLSX.utils.book_append_sheet(wb, wsTx, 'Transaksi');
 
   const name = sorted.length === 1 ? `Budget ${monthLabel(sorted[0])}.xlsx` : `Budget ${monthLabel(sorted[0])} - ${monthLabel(sorted[sorted.length - 1])}.xlsx`;
-  XLSX.writeFile(wb, name);
+  const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const file = new File([data], name, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  // Bagikan langsung bila Chrome mengizinkan jenis file ini; kalau tidak, unduh seperti biasa.
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return 'shared'; } catch (e) { if (e.name === 'AbortError') return 'cancelled'; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return 'downloaded';
 }

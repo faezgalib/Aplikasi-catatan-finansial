@@ -1,5 +1,5 @@
 // Penyimpanan data di localStorage (data hanya ada di perangkat ini).
-import { DEFAULT_CATEGORIES, DEFAULT_FIXED_ITEMS } from './defaults.js';
+import { DEFAULT_CATEGORIES, DEFAULT_FIXED_ITEMS, DEFAULT_RECURRING_ITEMS, DEFAULT_GOOD_CATEGORIES } from './defaults.js';
 
 const KEY = 'catfin.v1';
 
@@ -18,8 +18,8 @@ function defaultBudget(categories) {
 function freshState() {
   const categories = structuredClone(DEFAULT_CATEGORIES);
   return {
-    version: 2,
-    settings: { apiKey: '', smallNumberThousands: true, aiMode: 'unknown' },
+    version: 3,
+    settings: { apiKey: '', smallNumberThousands: true, aiMode: 'unknown', lastBackupAt: null },
     categories,
     months: {},
     transactions: [],
@@ -44,16 +44,32 @@ export function load() {
   return state;
 }
 
-// v1 -> v2: fixed cost ditandai per item (bukan per kategori), sesuai rumus Excel.
 function migrate() {
-  if ((state.version || 1) >= 2) return;
-  const ids = new Set(DEFAULT_FIXED_ITEMS);
-  for (const c of state.categories || []) {
-    if (c.type === 'fixed') c.type = 'variable';
-    for (const it of c.items) if (it.fixed === undefined) it.fixed = ids.has(it.id);
+  const v = state.version || 1;
+  // v1 -> v2: fixed cost ditandai per item (bukan per kategori), sesuai rumus Excel.
+  if (v < 2) {
+    const ids = new Set(DEFAULT_FIXED_ITEMS);
+    for (const c of state.categories || []) {
+      if (c.type === 'fixed') c.type = 'variable';
+      for (const it of c.items) if (it.fixed === undefined) it.fixed = ids.has(it.id);
+    }
   }
-  state.version = 2;
-  save();
+  // v2 -> v3: transaksi rutin per item, "melebihi = baik" per kategori, Gaji Mbak -> Gaji ART.
+  if (v < 3) {
+    const rec = new Set(DEFAULT_RECURRING_ITEMS);
+    const good = new Set(DEFAULT_GOOD_CATEGORIES);
+    for (const c of state.categories || []) {
+      if (c.overIsGood === undefined) c.overIsGood = good.has(c.id);
+      for (const it of c.items) {
+        if (it.recurring === undefined) it.recurring = rec.has(it.id);
+        if (it.id === 'gaji-mbak' && it.name === 'Gaji Mbak') it.name = 'Gaji ART';
+      }
+    }
+  }
+  if (v < 3) {
+    state.version = 3;
+    save();
+  }
 }
 
 export function save() {
@@ -152,4 +168,51 @@ export function summarize(key) {
     foodRatio: ratio(foodActual),
     savingActual: byType('saving'),
   };
+}
+
+/**
+ * Status budget per kategori untuk peringatan di Dashboard.
+ * level: 'bad' (>=100%), 'warn' (>=80%), 'good' (kategori "melebihi = baik" yang lewat 100%),
+ *        'nobudget' (ada pengeluaran tapi proyeksi 0).
+ */
+export function budgetStatus(summary, warnAt = 0.8) {
+  const cats = state.categories;
+  const out = [];
+  for (const c of summary.cats) {
+    const good = !!cats.find((x) => x.id === c.id)?.overIsGood;
+    if (!c.projected) {
+      if (c.actual > 0 && !good) out.push({ id: c.id, name: c.name, level: 'nobudget', actual: c.actual, projected: 0, ratio: null });
+      continue;
+    }
+    const ratio = c.actual / c.projected;
+    let level = null;
+    if (good) level = ratio > 1 ? 'good' : null;
+    else if (ratio >= 1) level = 'bad';
+    else if (ratio >= warnAt) level = 'warn';
+    if (level) out.push({ id: c.id, name: c.name, level, actual: c.actual, projected: c.projected, ratio });
+  }
+  const order = { bad: 0, warn: 1, good: 2, nobudget: 3 };
+  return out.sort((a, b) => order[a.level] - order[b.level] || (b.ratio ?? 0) - (a.ratio ?? 0));
+}
+
+/** Daftar transaksi rutin untuk bulan `key`: nominal = aktual bulan sebelumnya, atau proyeksi bila belum ada. */
+export function recurringEntries(key) {
+  const m = ensureMonth(key);
+  const [y, mo] = key.split('-').map(Number);
+  const prevKey = monthKey(new Date(y, mo - 2, 1));
+  const prevActual = {};
+  for (const t of state.transactions) if (t.month === prevKey) prevActual[t.itemId] = (prevActual[t.itemId] || 0) + t.amount;
+  const rows = [];
+  for (const c of state.categories) {
+    for (const it of c.items) {
+      if (!it.recurring) continue;
+      rows.push({ catId: c.id, itemId: it.id, desc: it.name, amount: prevActual[it.id] || Number(m.budget[it.id] || 0) });
+    }
+  }
+  return rows;
+}
+
+export function markBackup() {
+  state.settings.lastBackupAt = new Date().toISOString();
+  save();
 }

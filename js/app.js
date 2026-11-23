@@ -11,6 +11,78 @@ const pct = (v) => (v == null ? '–' : `${(v * 100).toFixed(1).replace('.', ','
 const parseAmount = (v) => Number(String(v).replace(/[^\d-]/g, '')) || 0;
 const fmtInput = (n) => (n ? Number(n).toLocaleString('id-ID') : '');
 
+// ---------- titik ribuan otomatis untuk semua kolom nominal (inputmode="numeric") ----------
+const groupDigits = (d) => d.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+function liveFormat(inp) {
+  const pos = inp.selectionStart ?? inp.value.length;
+  const digitsBefore = inp.value.slice(0, pos).replace(/\D/g, '').length;
+  const digits = inp.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  const out = groupDigits(digits);
+  if (out === inp.value) return;
+  inp.value = out;
+  // kembalikan kursor ke posisi setelah digit yang sama
+  let caret = 0, seen = 0;
+  while (caret < out.length && seen < digitsBefore) { if (/\d/.test(out[caret])) seen++; caret++; }
+  try { inp.setSelectionRange(caret, caret); } catch {}
+}
+const isAmount = (el) => el instanceof HTMLInputElement && el.inputMode === 'numeric';
+document.addEventListener('beforeinput', (e) => {
+  const inp = e.target;
+  if (!isAmount(inp) || e.inputType !== 'deleteContentBackward') return;
+  const p = inp.selectionStart;
+  // Hapus mundur tepat setelah titik: hapus angka sebelum titik, bukan titiknya.
+  if (p === inp.selectionEnd && p > 1 && inp.value[p - 1] === '.') {
+    e.preventDefault();
+    inp.value = inp.value.slice(0, p - 2) + inp.value.slice(p - 1);
+    inp.setSelectionRange(p - 2, p - 2);
+    liveFormat(inp);
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}, true);
+document.addEventListener('input', (e) => { if (isAmount(e.target)) liveFormat(e.target); }, true);
+
+// ---------- backup ----------
+function backupFile() {
+  const st = store.getState();
+  const copy = { ...st, settings: { ...st.settings, apiKey: '' } }; // jangan ikutkan API key
+  const name = `catatan-finansial-backup-${new Date().toISOString().slice(0, 10)}.txt`;
+  // .txt karena Chrome Android tidak mengizinkan file .json dibagikan; isinya tetap JSON.
+  return new File([JSON.stringify(copy, null, 1)], name, { type: 'text/plain' });
+}
+function downloadFile(file) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function downloadBackup() {
+  downloadFile(backupFile());
+  store.markBackup();
+  toast('Backup tersimpan di folder Download.');
+}
+async function shareBackup() {
+  const file = backupFile();
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Backup Catatan Finansial' });
+      store.markBackup();
+      toast('Backup dibagikan.');
+      render();
+    } catch (e) {
+      if (e.name !== 'AbortError') toast('Gagal membagikan: ' + e.message);
+    }
+    return;
+  }
+  toast('Perangkat ini tidak mendukung share. Backup diunduh.');
+  downloadBackup();
+  render();
+}
+function backupAgeDays() {
+  const t = store.getState().settings.lastBackupAt;
+  return t ? Math.floor((Date.now() - new Date(t).getTime()) / 86400000) : null;
+}
+
 const SERIES = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'];
 
 const ui = {
@@ -136,7 +208,32 @@ function renderDashboard() {
 
   const kpi = (label, value, sub = '', cls = '') => `<div class="kpi ${cls}"><div class="label">${label}</div><div class="value num">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
 
+  const st = store.getState();
+  const age = backupAgeDays();
+  const needBackup = st.transactions.length > 0 && (age === null || age > 7);
+  const status = store.budgetStatus(s);
+  const lv = {
+    bad: (x) => ['bad', '!', `${formatRp(x.actual)} dari ${formatRp(x.projected)}`, 'neg', `${Math.round(x.ratio * 100)}%`],
+    warn: (x) => ['warn', '!', `${formatRp(x.actual)} dari ${formatRp(x.projected)}`, 'warn', `${Math.round(x.ratio * 100)}%`],
+    good: (x) => ['good', '✓', 'Melebihi target, bagus', 'pos', `${Math.round(x.ratio * 100)}%`],
+    nobudget: (x) => ['muted', '–', `${formatRp(x.actual)}, tanpa budget`, 'grey', '–'],
+  };
+
   el.innerHTML = `
+    ${needBackup ? `<div class="banner warn">
+      <div><b>${age === null ? 'Belum pernah backup' : `Backup terakhir ${age} hari lalu`}</b><br><small>Data hanya ada di perangkat ini.</small></div>
+      <button class="btn primary" id="bannerBackup">Bagikan backup</button>
+    </div>` : ''}
+
+    <div class="card">
+      <h3>Status budget</h3>
+      ${status.length ? `<ul class="status-list">${status.map((x) => {
+        const [ico, sym, sub, pill, val] = lv[x.level](x);
+        return `<li><span class="st-ico ${ico}">${sym}</span><span><b>${esc(x.name)}</b><br><small>${sub}</small></span><span class="pill ${pill} num">${val}</span></li>`;
+      }).join('')}</ul>` : '<p class="hint">Semua kategori masih di bawah 80% dari proyeksi.</p>'}
+      <p class="hint">Kuning ≥ 80%, merah ≥ 100% dari proyeksi. Kategori bertanda "melebihi = baik" (Savings, Donasi) tampil hijau.</p>
+    </div>
+
     <div class="kpis">
       ${kpi('Pemasukan aktual', formatRp(s.incomeActual), `Proyeksi ${formatRp(s.incomeProjected)}`)}
       ${kpi('Total pengeluaran', formatRp(s.totalActual), `Proyeksi ${formatRp(s.totalProjected)}`)}
@@ -172,7 +269,7 @@ function renderDashboard() {
               <td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:${colors[c.id]}"></span>${ui.expanded.has(c.id) ? '▾' : '▸'} ${esc(c.name)}</td>
               <td class="num hide-sm">${formatRp(c.projected)}</td>
               <td class="num">${formatRp(c.actual)}</td>
-              <td class="num"><span class="pill ${c.diff < 0 ? 'neg' : 'pos'}">${formatRp(c.diff)}</span></td>
+              <td class="num"><span class="pill ${c.diff < 0 && !store.getState().categories.find((x) => x.id === c.id)?.overIsGood ? 'neg' : 'pos'}">${formatRp(c.diff)}</span></td>
             </tr>
             ${ui.expanded.has(c.id) ? c.items.filter((i) => i.projected || i.actual).map((i) => `
               <tr class="item-row"><td>${esc(i.name)}</td><td class="num hide-sm">${formatRp(i.projected)}</td><td class="num">${formatRp(i.actual)}</td><td class="num ${i.diff < 0 ? 'neg' : ''}">${formatRp(i.diff)}</td></tr>`).join('') || '<tr class="item-row"><td colspan="4">Belum ada data</td></tr>' : ''}
@@ -181,6 +278,9 @@ function renderDashboard() {
         </tbody>
       </table>
     </div>`;
+
+  const bb = $('#bannerBackup', el);
+  if (bb) bb.onclick = shareBackup;
 
   // hover / tap pada donut & legend
   const donut = $('#donut', el);
@@ -236,6 +336,9 @@ function renderInput() {
       <p class="hint">Tempel catatan Anda, satu item per baris. Contoh: <code>Kopi 35000</code>, <code>Bensin 150rb</code>, <code>Listrik 503.000</code>.
       Tanggal opsional di awal baris (<code>12/11 sate 45k</code>) atau sebagai judul (<code>12 Nov</code>). Baris diawali <code>+</code> dicatat sebagai pemasukan.
       Semua masuk ke bulan <b>${esc(monthLabel(ui.month))}</b>.</p>
+      <div class="quick-row">
+        <button class="quick" id="recurBtn"><span class="quick-ico">↻</span><b>Isi transaksi rutin</b><small>${esc(st.categories.flatMap((c) => c.items.filter((i) => i.recurring).map((i) => i.name)).join(', ') || 'Belum ada item rutin. Centang "Rutin" di menu Budget.')}</small></button>
+      </div>
       <div class="card">
         <label>Catatan
           <textarea id="notesText" placeholder="Kopi 35000&#10;Bensin 150rb&#10;Listrik 503.000&#10;Sedekah jumat 100rb">${esc(draft)}</textarea>
@@ -272,6 +375,7 @@ function renderInput() {
       maybeAutoAI();
     };
     $('#manualBtn', el).onclick = () => openTxDialog(null);
+    $('#recurBtn', el).onclick = startRecurring;
     return;
   }
 
@@ -286,11 +390,13 @@ function renderInput() {
     : r.source === 'keyword' ? '<span class="badge">Kata kunci</span>'
     : r.source === 'ai' ? '<span class="badge ai">AI</span>'
     : r.source === 'manual' ? '<span class="badge">Dipilih manual</span>'
+    : r.source === 'rutin' ? '<span class="badge rutin">Rutin</span>'
     : '<span class="badge none">Belum dikenali</span>';
 
   el.innerHTML = `
-    <h2>Periksa hasil (${rows.length} baris)</h2>
-    <p class="hint">Periksa kategori, ubah bila perlu, lalu simpan. Kategori yang Anda ubah akan diingat untuk catatan berikutnya.</p>
+    ${ui.review.kind === 'rutin'
+      ? `<h2>Transaksi rutin ${esc(monthLabel(ui.month))} (${rows.length})</h2><p class="hint">Nominal diambil dari aktual bulan lalu (atau proyeksi bila belum ada). Ubah bila berbeda, lalu simpan.</p>`
+      : `<h2>Periksa hasil (${rows.length} baris)</h2><p class="hint">Periksa kategori, ubah bila perlu, lalu simpan. Kategori yang Anda ubah akan diingat untuk catatan berikutnya.</p>`}
     ${ui.review.skipped.length ? `<div class="card"><b>Dilewati (tidak ada angka):</b><br><small>${ui.review.skipped.map(esc).join(' · ')}</small></div>` : ''}
     <div class="review">
       ${rows.map((r, i) => `
@@ -303,13 +409,13 @@ function renderInput() {
               ? `<select class="income-line">${month.income.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}<option value="_new">+ Baris pemasukan baru</option></select><span></span>`
               : `<select class="cat">${catOptions(r.catId, { blank: true })}</select><select class="item">${itemOptions(r.catId, r.itemId)}</select>`}
           </div>
-          <div class="meta">${badge(r)}${r.date ? `<span>${esc(r.date)}</span>` : ''}${r.assumedThousands ? '<span class="badge none">dianggap ribuan</span>' : ''}<span>“${esc(r.raw)}”</span></div>
+          <div class="meta">${badge(r)}${r.date ? `<span>${esc(r.date)}</span>` : ''}${r.assumedThousands ? '<span class="badge none">dianggap ribuan</span>' : ''}${r.raw ? `<span>“${esc(r.raw)}”</span>` : ''}</div>
         </div>`).join('')}
     </div>
     <div class="summary-bar">
       <span>Pengeluaran <b class="num">${formatRp(sumExp)}</b>${sumInc ? ` · Pemasukan <b class="num">${formatRp(sumInc)}</b>` : ''}</span>
       <span class="spacer"></span>
-      <button class="btn ghost" id="backBtn">← Ubah notes</button>
+      <button class="btn ghost" id="backBtn">${ui.review.kind === 'rutin' ? 'Batal' : '← Ubah notes'}</button>
       ${unknown ? `<button class="btn" id="aiBtn">Tanya AI (${unknown})</button>` : ''}
       <button class="btn primary" id="saveBtn" ${unknown ? 'disabled' : ''}>Simpan ${included.length}</button>
     </div>
@@ -365,6 +471,22 @@ function maybeAutoAI() {
   if (st.settings.apiKey && st.settings.aiMode === 'auto' && ui.review.rows.some((r) => !r.isIncome && !r.catId)) runAI($('#aiBtn'));
 }
 
+function startRecurring() {
+  const month = store.ensureMonth(ui.month);
+  const rows = store.recurringEntries(ui.month);
+  if (!rows.length) return toast('Belum ada item rutin. Centang "Rutin" pada item di menu Budget.');
+  if (month.recurringFilledAt) {
+    const d = new Date(month.recurringFilledAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    if (!confirm(`Transaksi rutin ${monthLabel(ui.month)} sudah diisi tanggal ${d}. Tetap tambahkan lagi?`)) return;
+  }
+  ui.review = {
+    kind: 'rutin',
+    skipped: [],
+    rows: rows.map((r) => ({ ...r, include: r.amount > 0, date: '', raw: '', source: 'rutin', touched: false })),
+  };
+  renderInput();
+}
+
 function saveReview() {
   const st = store.getState();
   const month = store.ensureMonth(ui.month);
@@ -386,9 +508,11 @@ function saveReview() {
     if (r.touched || r.source === 'ai') learn(r.desc, r.catId, r.itemId);
     nTx++;
   }
+  if (ui.review.kind === 'rutin' && nTx) month.recurringFilledAt = new Date().toISOString();
   store.save();
+  const wasNotes = ui.review.kind !== 'rutin';
   ui.review = null;
-  try { localStorage.removeItem('catfin.draft'); } catch {}
+  if (wasNotes) { try { localStorage.removeItem('catfin.draft'); } catch {} }
   toast(`Tersimpan: ${nTx} transaksi${nInc ? `, ${nInc} pemasukan` : ''}.`);
   setView('dashboard');
 }
@@ -456,10 +580,6 @@ function openTxDialog(tx) {
     const c = categorize(f.desc.value, st.categories, st.learned);
     if (c.catId) { f.catId.value = c.catId; f.itemId.innerHTML = itemOptions(c.catId, c.itemId); }
   };
-  f.amount.oninput = () => {
-    const n = parseAmount(f.amount.value);
-    f.amount.value = n ? n.toLocaleString('id-ID') : '';
-  };
   $('#txCancel').onclick = () => dlg.close();
   $('#txDelete').onclick = () => {
     if (!confirm('Hapus transaksi ini?')) return;
@@ -511,14 +631,15 @@ function renderBudget() {
         const sum = c.items.reduce((b, i) => b + Number(m.budget[i.id] || 0), 0);
         return `<details class="budget-cat" data-cat="${c.id}">
           <summary><span>${esc(c.name)}</span><span class="num">${formatRp(sum)}</span></summary>
-          ${c.items.map((i) => `<div class="budget-item"><span>${esc(i.name)}${i.fixed ? ' <span class="badge">Fixed</span>' : ''}</span><input class="num bud" data-item="${i.id}" inputmode="numeric" value="${fmtInput(m.budget[i.id])}" placeholder="0"></div>`).join('')}
+          ${c.items.map((i) => `<div class="budget-item"><span>${esc(i.name)}${i.fixed ? ' <span class="badge">Fixed</span>' : ''}${i.recurring ? ' <span class="badge rutin">Rutin</span>' : ''}</span><input class="num bud" data-item="${i.id}" inputmode="numeric" value="${fmtInput(m.budget[i.id])}" placeholder="0"></div>`).join('')}
           <div class="cat-edit">
             <div class="row2">
               <label>Nama kategori<input class="cname" value="${esc(c.name)}"></label>
               <label>Jenis<select class="ctype">${Object.entries(CATEGORY_TYPES).map(([k, v]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
             </div>
-            <p class="hint">Item & kata kunci (pisahkan dengan koma). Kata kunci dipakai untuk mengenali catatan. Centang <b>Fixed cost</b> untuk item yang dihitung di Fixed Cost (Non Food).</p>
-            ${c.items.map((i) => `<div class="item-edit" data-item="${i.id}"><input class="iname2" value="${esc(i.name)}" aria-label="Nama item"><input class="ikw" value="${esc((i.keywords || []).join(', '))}" placeholder="kata kunci" aria-label="Kata kunci"><label class="check ifix-wrap"><input type="checkbox" class="ifix" ${i.fixed ? 'checked' : ''}> Fixed cost</label><button class="btn ghost danger idel" aria-label="Hapus item">×</button></div>`).join('')}
+            <p class="hint">Item & kata kunci (pisahkan dengan koma). Kata kunci dipakai untuk mengenali catatan. Centang <b>Fixed cost</b> untuk item yang dihitung di Fixed Cost (Non Food), dan <b>Rutin</b> untuk item yang diisi lewat tombol "Isi transaksi rutin".</p>
+            <label class="check"><input type="checkbox" class="cgood" ${c.overIsGood ? 'checked' : ''}> Melebihi proyeksi = baik (tidak dianggap peringatan)</label>
+            ${c.items.map((i) => `<div class="item-edit" data-item="${i.id}"><input class="iname2" value="${esc(i.name)}" aria-label="Nama item"><input class="ikw" value="${esc((i.keywords || []).join(', '))}" placeholder="kata kunci" aria-label="Kata kunci"><label class="check ifix-wrap"><input type="checkbox" class="ifix" ${i.fixed ? 'checked' : ''}> Fixed cost</label><label class="check ifix-wrap"><input type="checkbox" class="irec" ${i.recurring ? 'checked' : ''}> Rutin</label><button class="btn ghost danger idel" aria-label="Hapus item">×</button></div>`).join('')}
             <div class="btn-row"><button class="btn addItem">+ Item</button><span class="spacer"></span><button class="btn ghost danger delCat">Hapus kategori</button></div>
           </div>
         </details>`;
@@ -553,11 +674,13 @@ function renderBudget() {
     det.ontoggle = () => { if (det.open) ui.openCat = c.id; };
     $('.cname', det).onchange = (e) => { c.name = e.target.value.trim() || c.name; saveQuiet(); };
     $('.ctype', det).onchange = (e) => { c.type = e.target.value; saveQuiet(); };
+    $('.cgood', det).onchange = (e) => { c.overIsGood = e.target.checked; saveQuiet(); };
     $$('.item-edit', det).forEach((row) => {
       const it = c.items.find((i) => i.id === row.dataset.item);
       $('.iname2', row).onchange = (e) => { it.name = e.target.value.trim() || it.name; saveQuiet(); };
       $('.ikw', row).onchange = (e) => { it.keywords = e.target.value.split(',').map((s) => s.trim()).filter(Boolean); saveQuiet(); };
       $('.ifix', row).onchange = (e) => { it.fixed = e.target.checked; saveQuiet(); };
+      $('.irec', row).onchange = (e) => { it.recurring = e.target.checked; saveQuiet(); };
       $('.idel', row).onclick = () => {
         if (st.transactions.some((t) => t.itemId === it.id)) return toast('Item ini sudah punya transaksi. Pindahkan dulu transaksinya.');
         if (c.items.length === 1) return toast('Kategori minimal punya satu item.');
@@ -620,14 +743,16 @@ function renderSettings() {
 
     <div class="card">
       <h3>Backup data</h3>
-      <p class="hint">Data hanya tersimpan di browser perangkat ini. Jika data Chrome dihapus, data ikut hilang. Simpan backup secara rutin (mis. ke Google Drive).
-      Bulan tersimpan: ${monthsWithData.length ? monthsWithData.map(monthLabel).join(', ') : '–'}.</p>
+      <p class="hint">Backup terakhir: <b>${st.settings.lastBackupAt ? `${new Date(st.settings.lastBackupAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} (${backupAgeDays()} hari lalu)` : 'belum pernah'}</b>. Pengingat muncul di Dashboard kalau lewat 7 hari.</p>
+      <div class="btn-row"><button class="btn primary" id="shareBackup">Bagikan backup (Gmail, WhatsApp, Drive…)</button></div>
       <div class="btn-row">
-        <button class="btn" id="backup">Download backup (.json)</button>
-        <label class="btn" style="margin:0;display:inline-flex;align-items:center">Restore backup<input type="file" id="restore" accept="application/json,.json" hidden></label>
+        <button class="btn" id="backup">Download backup</button>
+        <label class="btn" style="margin:0;display:inline-flex;align-items:center">Restore backup<input type="file" id="restore" accept=".txt,.json,text/plain,application/json" hidden></label>
         <span class="spacer"></span>
         <button class="btn ghost danger" id="reset">Hapus semua data</button>
       </div>
+      <p class="hint">File berformat .txt dan berisi seluruh data keuangan Anda tanpa enkripsi. Kirim hanya ke email atau Drive milik sendiri.
+      Data hanya tersimpan di perangkat ini; jika data Chrome dihapus, data ikut hilang. Bulan tersimpan: ${monthsWithData.length ? monthsWithData.map(monthLabel).join(', ') : '–'}.</p>
     </div>`;
 
   $$('[data-exp]', el).forEach((b) => (b.onclick = async () => {
@@ -635,22 +760,15 @@ function renderSettings() {
     const keys = b.dataset.exp === 'month' ? [ui.month] : b.dataset.exp === 'year' ? all.filter((k) => k.startsWith(year)) : all;
     if (!keys.length) return toast('Belum ada data.');
     b.disabled = true;
-    try { await exportExcel(keys); toast('File Excel dibuat.'); } catch (e) { toast('Export gagal: ' + e.message); }
+    try { const r = await exportExcel(keys); if (r !== 'cancelled') toast(r === 'shared' ? 'File Excel dibagikan.' : 'File Excel diunduh.'); } catch (e) { toast('Export gagal: ' + e.message); }
     b.disabled = false;
   }));
   $('#apiKey', el).onchange = (e) => { st.settings.apiKey = e.target.value.trim(); store.save(); toast('API key disimpan.'); };
   $('#aiMode', el).onchange = (e) => { st.settings.aiMode = e.target.value; store.save(); };
   $('#smallK', el).onchange = (e) => { st.settings.smallNumberThousands = e.target.checked; store.save(); };
   $('#clearLearned', el).onclick = () => { if (confirm('Hapus semua riwayat koreksi kategori?')) { st.learned = {}; store.save(); renderSettings(); } };
-  $('#backup', el).onclick = () => {
-    const copy = { ...st, settings: { ...st.settings, apiKey: '' } }; // jangan ikutkan API key
-    const blob = new Blob([JSON.stringify(copy, null, 1)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `catatan-finansial-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  };
+  $('#backup', el).onclick = () => { downloadBackup(); renderSettings(); };
+  $('#shareBackup', el).onclick = shareBackup;
   $('#restore', el).onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;

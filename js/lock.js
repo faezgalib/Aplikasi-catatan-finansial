@@ -3,6 +3,8 @@
 // PIN tidak disimpan; yang disimpan hanya hash PBKDF2 + salt acak, di kunci localStorage terpisah
 // sehingga tidak ikut file backup dan tidak tertimpa saat Restore.
 
+import { t } from './i18n.js';
+
 const KEY = 'catfin.lock';
 const PIN_LEN = 6;
 const MAX_TRIES = 3;
@@ -60,9 +62,9 @@ function build() {
         ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<button type="button" data-k="${n}">${n}</button>`).join('')}
         <button type="button" class="lock-alt" data-k="cancel"></button>
         <button type="button" data-k="0">0</button>
-        <button type="button" data-k="del" aria-label="Hapus">⌫</button>
+        <button type="button" data-k="del" class="lock-del">⌫</button>
       </div>
-      <button type="button" class="lock-forgot">Lupa PIN?</button>
+      <button type="button" class="lock-forgot"></button>
     </div>`;
   document.body.appendChild(overlay);
 }
@@ -82,11 +84,13 @@ function prompt(mode, { title, onForgot } = {}) {
   let first = null;
   let timer = null;
 
-  const setTitle = () => { $('.lock-title').textContent = mode === 'set' ? (first ? 'Ulangi PIN baru' : (title || 'Buat PIN 6 digit')) : (title || 'Masukkan PIN'); };
+  const setTitle = () => { $('.lock-title').textContent = mode === 'set' ? (first ? t('lk.repeat') : (title || t('lk.create'))) : (title || t('lk.enter')); };
   const draw = () => dots.forEach((d, i) => d.classList.toggle('on', i < buf.length));
   const msg = (t, bad) => { const m = $('.lock-msg'); m.textContent = t || ''; m.classList.toggle('bad', !!bad); };
   const cancelBtn = $('.lock-alt');
-  cancelBtn.textContent = mode === 'unlock' ? '' : 'Batal';
+  cancelBtn.textContent = mode === 'unlock' ? '' : t('lk.cancel');
+  $('.lock-forgot').textContent = t('lk.forgot');
+  $('.lock-del').setAttribute('aria-label', t('lk.del'));
   cancelBtn.disabled = mode === 'unlock';
   $('.lock-forgot').hidden = mode !== 'unlock';
   setTitle(); draw(); msg('');
@@ -98,7 +102,7 @@ function prompt(mode, { title, onForgot } = {}) {
       const left = penaltyLeft();
       if (!left) { clearInterval(timer); msg(''); return; }
       const total = Math.ceil(left / 1000);
-      msg(`PIN salah ${MAX_TRIES} kali. Coba lagi dalam ${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`, true);
+      msg(t('lk.locked', { t: `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}` }), true);
     };
     tick(); timer = setInterval(tick, 1000);
   };
@@ -118,7 +122,7 @@ function prompt(mode, { title, onForgot } = {}) {
       buf = ''; draw();
       if (mode === 'set') {
         if (!first) { first = pin; setTitle(); msg(''); return; }
-        if (pin !== first) { first = null; setTitle(); msg('PIN tidak sama. Ulangi dari awal.', true); return; }
+        if (pin !== first) { first = null; setTitle(); msg(t('lk.mismatch'), true); return; }
         return finish(pin);
       }
       if (penaltyLeft()) return showPenalty();
@@ -130,7 +134,7 @@ function prompt(mode, { title, onForgot } = {}) {
       v.fails = (v.fails || 0) + 1;
       if (v.fails >= MAX_TRIES) { v.fails = 0; v.until = Date.now() + PENALTY_MS; write(v); return showPenalty(); }
       write(v);
-      msg(`PIN salah. Sisa ${MAX_TRIES - v.fails} kali percobaan.`, true);
+      msg(t('lk.wrong', { n: MAX_TRIES - v.fails }), true);
     };
     const press = (k) => {
       if (k === 'cancel') { if (mode !== 'unlock') finish(null); return; }
@@ -190,16 +194,16 @@ export async function enableFlow() {
 }
 /** Matikan PIN (harus memasukkan PIN lama). */
 export async function disableFlow() {
-  const ok = await prompt('verify', { title: 'Masukkan PIN saat ini' });
+  const ok = await prompt('verify', { title: t('lk.current') });
   if (!ok) return false;
   disable();
   return true;
 }
 /** Ganti PIN. */
 export async function changeFlow() {
-  const ok = await prompt('verify', { title: 'Masukkan PIN lama' });
+  const ok = await prompt('verify', { title: t('lk.old') });
   if (!ok) return false;
-  const pin = await prompt('set', { title: 'Buat PIN baru' });
+  const pin = await prompt('set', { title: t('lk.new') });
   if (!pin) return false;
   await savePin(pin);
   return true;

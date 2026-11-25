@@ -1,5 +1,6 @@
 // Export ke Excel (.xlsx) memakai SheetJS (vendor/xlsx.mini.min.js), dimuat saat dibutuhkan.
 import { getState, summarize } from './store.js';
+import { t, monthLabel } from './i18n.js';
 
 function loadXLSX() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
@@ -7,15 +8,12 @@ function loadXLSX() {
     const s = document.createElement('script');
     s.src = 'vendor/xlsx.mini.min.js';
     s.onload = () => resolve(window.XLSX);
-    s.onerror = () => reject(new Error('Gagal memuat modul Excel.'));
+    s.onerror = () => reject(new Error(t('ex.loadFail')));
     document.head.appendChild(s);
   });
 }
 
-export function monthLabel(key) {
-  const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-}
+export { monthLabel };
 
 /** Satu sheet per bulan dengan susunan seperti template Excel. */
 function monthSheetRows(key) {
@@ -70,7 +68,7 @@ export async function exportExcel(keys) {
 
   // Ringkasan tahunan: bulan x kategori
   const cats = st.categories;
-  const recap = [['Bulan', 'Pemasukan', ...cats.map((c) => c.name), 'Total Pengeluaran', 'Saldo', 'Saving Ratio']];
+  const recap = [[t('ex.month'), t('ex.income'), ...cats.map((c) => c.name), t('ex.totalExp'), t('ex.balance'), t('ex.savingRatio')]];
   for (const k of sorted) {
     const s = summarize(k);
     recap.push([
@@ -80,7 +78,7 @@ export async function exportExcel(keys) {
   }
   const wsRecap = moneyFormat(XLSX, XLSX.utils.aoa_to_sheet(recap));
   wsRecap['!cols'] = recap[0].map((_, i) => ({ wch: i === 0 ? 18 : 16 }));
-  XLSX.utils.book_append_sheet(wb, wsRecap, 'Ringkasan');
+  XLSX.utils.book_append_sheet(wb, wsRecap, t('ex.summary'));
 
   for (const k of sorted) {
     const ws = moneyFormat(XLSX, XLSX.utils.aoa_to_sheet(monthSheetRows(k)));
@@ -89,7 +87,7 @@ export async function exportExcel(keys) {
   }
 
   // Semua transaksi
-  const tx = [['Bulan', 'Tanggal', 'Kategori', 'Item', 'Keterangan', 'Jumlah (Rp)']];
+  const tx = [[t('ex.month'), t('ex.date'), t('ex.category'), t('ex.item'), t('ex.desc'), t('ex.amount')]];
   const keySet = new Set(sorted);
   for (const t of st.transactions.filter((x) => keySet.has(x.month)).sort((a, b) => (a.month + (a.date || '')).localeCompare(b.month + (b.date || '')))) {
     const c = cats.find((x) => x.id === t.catId);
@@ -98,7 +96,7 @@ export async function exportExcel(keys) {
   }
   const wsTx = moneyFormat(XLSX, XLSX.utils.aoa_to_sheet(tx));
   wsTx['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 22 }, { wch: 32 }, { wch: 36 }, { wch: 14 }];
-  XLSX.utils.book_append_sheet(wb, wsTx, 'Transaksi');
+  XLSX.utils.book_append_sheet(wb, wsTx, t('ex.transactions'));
 
   const name = sorted.length === 1 ? `Budget ${monthLabel(sorted[0])}.xlsx` : `Budget ${monthLabel(sorted[0])} - ${monthLabel(sorted[sorted.length - 1])}.xlsx`;
   const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });

@@ -19,7 +19,7 @@ function freshState() {
   const categories = structuredClone(DEFAULT_CATEGORIES);
   return {
     version: 3,
-    settings: { apiKey: '', smallNumberThousands: true, aiMode: 'unknown', lastBackupAt: null },
+    settings: { apiKey: '', smallNumberThousands: true, aiMode: 'unknown', lastBackupAt: null, lang: 'en', numberFormat: 'dot' },
     categories,
     months: {},
     transactions: [],

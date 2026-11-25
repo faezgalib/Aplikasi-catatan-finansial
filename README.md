@@ -14,6 +14,7 @@ A web app (PWA) for recording monthly spending. Paste your notes, each item is s
 - **Share from the Notes app** (Android): after installing the app, select text in Notes → *Share* → *Catatan Finansial*.
 - **Excel export** (.xlsx): a Summary sheet, one sheet per month (same layout as the template) and a Transactions sheet.
 - **Budget**: projected cost per item, multiple income sources, previous savings balance, editing categories/items/keywords. A new month automatically copies the previous month's projections.
+- **English and Indonesian** (Settings → Language, English by default), and a number format option: `Rp70.000.000` or `Rp70,000,000`.
 - **Works offline**, data is stored only in this device's browser. Use *Download backup* regularly.
 
 ## Running locally

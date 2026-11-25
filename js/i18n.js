@@ -1,0 +1,305 @@
+// Dua bahasa (Inggris default, Indonesia) dan format angka (titik atau koma ribuan).
+// Hanya teks tampilan yang diterjemahkan; data pengguna (nama kategori, keterangan) tidak diubah.
+
+let lang = 'en';
+let group = '.'; // pemisah ribuan: '.' (Rp70.000.000) atau ',' (Rp70,000,000)
+
+export const setLang = (l) => { lang = l === 'id' ? 'id' : 'en'; document.documentElement.lang = lang; };
+export const getLang = () => lang;
+export const setNumberFormat = (f) => { group = f === 'comma' ? ',' : '.'; };
+export const groupSep = () => group;
+export const decimalSep = () => (group === '.' ? ',' : '.');
+export const locale = () => (lang === 'id' ? 'id-ID' : 'en-GB');
+
+// [English, Indonesia]
+const D = {
+  // navigasi
+  'nav.dashboard': ['Dashboard', 'Dashboard'],
+  'nav.input': ['Input Notes', 'Input Notes'],
+  'nav.tx': ['Transactions', 'Transaksi'],
+  'nav.budget': ['Budget', 'Budget'],
+  'nav.settings': ['Settings', 'Pengaturan'],
+  'nav.prev': ['Previous month', 'Bulan sebelumnya'],
+  'nav.next': ['Next month', 'Bulan berikutnya'],
+  'nav.pick': ['Pick a month', 'Pilih bulan'],
+  // umum
+  'c.saved': ['Saved.', 'Tersimpan.'],
+  'c.cancelled': ['Cancelled.', 'Dibatalkan.'],
+  'c.total': ['Total', 'Total'],
+  'c.others': ['Others', 'Lainnya'],
+  // dashboard
+  'd.balance': ['Balance this month', 'Saldo bulan ini'],
+  'd.balanceSub': ['Income {inc} − Expenses {exp}', 'Pemasukan {inc} − Pengeluaran {exp}'],
+  'd.opening': ['Opening savings balance {v}', 'Saldo tabungan awal {v}'],
+  'd.vsPlan': ['Spending vs plan', 'Pengeluaran vs proyeksi'],
+  'd.ofPlan': ['of {v}', 'dari {v}'],
+  'd.noPlan': ['No plan yet. Fill it in Budget.', 'Proyeksi belum diisi. Isi di menu Budget.'],
+  'd.saving': ['Saving to income', 'Saving to income'],
+  'd.fixed': ['Fixed cost (non food)', 'Fixed cost (non food)'],
+  'd.food': ['Food & groceries', 'Food & groceries'],
+  'd.ofIncome': ['{p} of income', '{p} dari pemasukan'],
+  'd.byCat': ['Spending by category', 'Pengeluaran per kategori'],
+  'd.totalActual': ['Total spent', 'Total aktual'],
+  'd.empty': ['No transactions this month yet. Start from Input Notes.', 'Belum ada transaksi bulan ini. Mulai dari menu Input Notes.'],
+  'd.cats': ['Categories · actual vs plan', 'Kategori · aktual vs proyeksi'],
+  'd.catsHint': ['Yellow ≥ 80%, red ≥ 100% of plan. Categories marked "over plan is good" (Savings, Donations) turn green. Tap a category to see its items.', 'Kuning ≥ 80%, merah ≥ 100% dari proyeksi. Kategori bertanda "melebihi = baik" (Savings, Donasi) tampil hijau. Ketuk kategori untuk melihat item.'],
+  'd.noBudget': ['no plan', 'tanpa budget'],
+  'd.noItems': ['No data', 'Belum ada data'],
+  // tren
+  'tr.need2': ['Trend charts appear once there are at least 2 months of data.', 'Grafik tren muncul setelah ada data minimal 2 bulan.'],
+  'tr.title': ['Trends', 'Tren antar bulan'],
+  'tr.incExp': ['Income vs expenses', 'Pemasukan vs pengeluaran'],
+  'tr.income': ['Income', 'Pemasukan'],
+  'tr.expense': ['Expenses', 'Pengeluaran'],
+  'tr.tap': ['Tap a bar to see its numbers.', 'Ketuk batang untuk melihat angkanya.'],
+  'tr.month': ['Month', 'Bulan'],
+  'tr.saving': ['Saving', 'Saving'],
+  'tr.balance': ['Balance', 'Saldo'],
+  'tr.showTable': ['Show as table', 'Lihat sebagai tabel'],
+  'tr.hideTable': ['Hide table', 'Sembunyikan tabel'],
+  'tr.savRatio': ['Saving to income', 'Saving to income'],
+  'tr.vs': ['Compared with {m}', 'Dibanding {m}'],
+  'tr.cat': ['Category', 'Kategori'],
+  'tr.change': ['Change', 'Perubahan'],
+  'tr.noCmp': ['Nothing to compare yet.', 'Belum ada data untuk dibandingkan.'],
+  'tr.cmpHint': ['Up = red, down = green. Reversed for "over plan is good" categories (Savings, Donations).', 'Naik = merah, turun = hijau. Untuk kategori "melebihi = baik" (Savings, Donasi) kebalikannya.'],
+  'tr.M': ['M', 'jt'],
+  // input
+  'in.sub': ['Everything goes into {m}.', 'Semua masuk ke bulan {m}.'],
+  'in.rec': ['Recurring transactions', 'Transaksi rutin'],
+  'in.recFilled': ['Filled on {d}', 'Sudah diisi {d}'],
+  'in.recNot': ['Not filled yet', 'Belum diisi'],
+  'in.recNone': ['No recurring items yet. Mark items as "Recurring" in Budget.', 'Belum ada item rutin. Tandai "Rutin" pada item di menu Budget.'],
+  'in.recBtn': ['↻ Fill recurring', '↻ Isi transaksi rutin'],
+  'in.paste': ['Paste notes', 'Tempel catatan'],
+  'in.clear': ['Clear', 'Kosongkan'],
+  'in.fromClip': ['Paste from clipboard', 'Tempel dari clipboard'],
+  'in.lines': ['{n} lines · one item per line', '{n} baris · satu item per baris'],
+  'in.process': ['Process notes →', 'Proses catatan →'],
+  'in.manual': ['+ Add a single transaction', '+ Tambah satu transaksi manual'],
+  'in.formatHint': ['Optional date at the start of a line ("12/11 …") or as a heading line ("12 Nov"). Lines starting with + are income.', 'Tanggal opsional di awal baris ("12/11 …") atau sebagai judul ("12 Nov"). Baris diawali + dicatat sebagai pemasukan.'],
+  'in.clipFail': ['Clipboard could not be read. Long-press the text box and choose Paste.', 'Clipboard tidak bisa dibaca. Tekan lama di kotak teks lalu pilih Tempel.'],
+  'in.emptyNotes': ['Notes are empty.', 'Catatan masih kosong.'],
+  'in.noAmounts': ['No lines with a readable amount.', 'Tidak ada baris dengan angka yang bisa dibaca.'],
+  // periksa hasil
+  'rv.title': ['Review', 'Periksa hasil'],
+  'rv.sub': ['{n} lines · categories you change are remembered.', '{n} baris · kategori yang Anda ubah akan diingat.'],
+  'rv.recTitle': ['Recurring · {m}', 'Transaksi rutin · {m}'],
+  'rv.recSub': ["Amounts come from last month's actual (or the plan). Change if different, then save.", 'Nominal diambil dari aktual bulan lalu (atau proyeksi). Ubah bila berbeda, lalu simpan.'],
+  'rv.back': ['← Edit notes', '← Ubah notes'],
+  'rv.cancel': ['Cancel', 'Batal'],
+  'rv.skipped': ['Skipped (no amount):', 'Dilewati (tidak ada angka):'],
+  'rv.pick': ['Pick a category', 'Pilih kategori'],
+  'rv.newIncome': ['+ New income line', '+ Baris pemasukan baru'],
+  'rv.income': ['Income', 'Pemasukan'],
+  'rv.unk': ['{n} without a category', '{n} belum punya kategori'],
+  'rv.ai': ['Ask AI ({n})', 'Tanya AI ({n})'],
+  'rv.asking': ['Asking AI…', 'Menanyakan AI…'],
+  'rv.save': ['Save {n}', 'Simpan {n}'],
+  'rv.hintAi': ['Pick manually or tap Ask AI.', 'Pilih manual atau tekan Tanya AI.'],
+  'rv.hintNoKey': ['Pick manually, or add a Claude API key in Settings to ask AI.', 'Pilih manual, atau isi API key Claude di Pengaturan agar bisa ditanyakan ke AI.'],
+  'rv.include': ['Include', 'Sertakan'],
+  'b.income': ['Income', 'Pemasukan'],
+  'b.learned': ['From history', 'Dari riwayat'],
+  'b.keyword': ['Keyword', 'Kata kunci'],
+  'b.ai': ['AI', 'AI'],
+  'b.manual': ['Picked manually', 'Dipilih manual'],
+  'b.rutin': ['Recurring', 'Rutin'],
+  'b.none': ['Not recognized', 'Belum dikenali'],
+  'b.thousands': ['read as thousands', 'dianggap ribuan'],
+  'ai.needKey': ['Add your Claude API key in Settings first.', 'Isi API key Claude dulu di menu Pengaturan.'],
+  'ai.done': ['AI categorized {a} of {b} items. Please check.', 'AI mengkategorikan {a} dari {b} item. Silakan periksa.'],
+  'ai.fail': ['AI failed: {e}', 'AI gagal: {e}'],
+  'rec.again': ['Recurring transactions for {m} were already filled on {d}. Add them again?', 'Transaksi rutin {m} sudah diisi tanggal {d}. Tetap tambahkan lagi?'],
+  'sv.done': ['Saved: {n} transactions', 'Tersimpan: {n} transaksi'],
+  'sv.inc': [', {n} income', ', {n} pemasukan'],
+  // transaksi
+  'tx.count': ['{n} transactions', '{n} transaksi'],
+  'tx.add': ['+ Add', '+ Tambah'],
+  'tx.allCats': ['All categories', 'Semua kategori'],
+  'tx.search': ['Search description…', 'Cari keterangan…'],
+  'tx.noDate': ['No date', 'Tanpa tanggal'],
+  'tx.empty': ['No transactions yet.', 'Belum ada transaksi.'],
+  // dialog transaksi
+  'dl.edit': ['Edit transaction', 'Ubah transaksi'],
+  'dl.add': ['Add transaction', 'Tambah transaksi'],
+  'dl.desc': ['Description', 'Keterangan'],
+  'dl.amount': ['Amount (Rp)', 'Jumlah (Rp)'],
+  'dl.date': ['Date', 'Tanggal'],
+  'dl.cat': ['Category', 'Kategori'],
+  'dl.item': ['Item', 'Item'],
+  'dl.learn': ['Remember this category for future notes', 'Ingat kategori ini untuk catatan berikutnya'],
+  'dl.del': ['Delete', 'Hapus'],
+  'dl.cancel': ['Cancel', 'Batal'],
+  'dl.save': ['Save', 'Simpan'],
+  'dl.confirmDel': ['Delete this transaction?', 'Hapus transaksi ini?'],
+  'dl.deleted': ['Transaction deleted.', 'Transaksi dihapus.'],
+  'dl.need': ['Fill in description and amount.', 'Isi keterangan dan jumlah.'],
+  // budget
+  'bu.sub': ['Plan for {m} · saved automatically', 'Proyeksi {m} · tersimpan otomatis'],
+  'bu.balInc': ['Balance & income', 'Saldo & pemasukan'],
+  'bu.prevBal': ['Savings account balance last month', 'Saldo rekening tabungan bulan lalu'],
+  'bu.source': ['Source', 'Sumber'],
+  'bu.plan': ['Plan', 'Proyeksi'],
+  'bu.actual': ['Actual', 'Aktual'],
+  'bu.addIncome': ['+ Income source', '+ Sumber pemasukan'],
+  'bu.extra': ['Extra income', 'Extra income'],
+  'bu.incName': ['Income name', 'Nama pemasukan'],
+  'bu.remove': ['Remove', 'Hapus'],
+  'bu.spendPlan': ['Planned spending', 'Proyeksi pengeluaran'],
+  'bu.copy': ['Copy from last month', 'Salin dari bulan lalu'],
+  'bu.noPrev': ['Last month has no data yet.', 'Bulan lalu belum ada data.'],
+  'bu.copyConfirm': ["Replace this month's plan with last month's?", 'Timpa proyeksi bulan ini dengan proyeksi bulan lalu?'],
+  'bu.copied': ['Plan copied.', 'Proyeksi disalin.'],
+  'bu.fixed': ['Fixed', 'Fixed'],
+  'bu.rutin': ['Recurring', 'Rutin'],
+  'bu.fixedTip': ['Counted in Fixed cost (non food)', 'Dihitung di Fixed cost (non food)'],
+  'bu.rutinTip': ['Included in "Fill recurring"', 'Ikut di tombol "Isi transaksi rutin"'],
+  'bu.catSettings': ['Category settings', 'Pengaturan kategori'],
+  'bu.catName': ['Category name', 'Nama kategori'],
+  'bu.type': ['Type', 'Jenis'],
+  'bu.good': ['Over plan is good (not a warning)', 'Melebihi proyeksi = baik (bukan peringatan)'],
+  'bu.itemsKw': ['Items & keywords', 'Item & kata kunci'],
+  'bu.kwHint': ['Keywords help recognize notes. Separate with commas.', 'Kata kunci dipakai untuk mengenali catatan. Pisahkan dengan koma.'],
+  'bu.kw': ['keywords', 'kata kunci'],
+  'bu.itemName': ['Item name', 'Nama item'],
+  'bu.addItem': ['+ Item', '+ Item'],
+  'bu.newItem': ['New item', 'Item baru'],
+  'bu.delItemBtn': ['Delete item', 'Hapus item'],
+  'bu.delCat': ['Delete category', 'Hapus kategori'],
+  'bu.addCat': ['+ New category', '+ Kategori baru'],
+  'bu.newCatPrompt': ['New category name:', 'Nama kategori baru:'],
+  'bu.itemHasTx': ['This item has transactions. Move them first.', 'Item ini sudah punya transaksi. Pindahkan dulu transaksinya.'],
+  'bu.minOne': ['A category needs at least one item.', 'Kategori minimal punya satu item.'],
+  'bu.delItem': ['Delete item "{n}"?', 'Hapus item "{n}"?'],
+  'bu.catHasTx': ['This category has transactions.', 'Kategori ini sudah punya transaksi.'],
+  'bu.delCatQ': ['Delete category "{n}"?', 'Hapus kategori "{n}"?'],
+  'type.food': ['Food & groceries', 'Makanan & groceries'],
+  'type.saving': ['Savings / investment', 'Tabungan / investasi'],
+  'type.variable': ['Variable', 'Variabel'],
+  // pengaturan
+  'se.display': ['Language & numbers', 'Bahasa & angka'],
+  'se.lang': ['Language', 'Bahasa'],
+  'se.numFmt': ['Number format', 'Format angka'],
+  'se.fmtDot': ['Rp70.000.000 (Indonesian)', 'Rp70.000.000 (Indonesia)'],
+  'se.fmtComma': ['Rp70,000,000 (International)', 'Rp70,000,000 (internasional)'],
+  'se.export': ['Export to Excel', 'Export ke Excel'],
+  'se.exportHint': ['.xlsx with a Summary sheet, one sheet per month (laid out like your template) and a Transactions list.', 'File .xlsx berisi sheet Ringkasan, satu sheet per bulan (susunan seperti template Anda), dan daftar Transaksi.'],
+  'se.year': ['Year {y}', 'Tahun {y}'],
+  'se.allMonths': ['All months', 'Semua bulan'],
+  'se.noData': ['No data yet.', 'Belum ada data.'],
+  'se.xShared': ['Excel file shared.', 'File Excel dibagikan.'],
+  'se.xDl': ['Excel file downloaded.', 'File Excel diunduh.'],
+  'se.xFail': ['Export failed: {e}', 'Export gagal: {e}'],
+  'se.ai': ['AI (Claude) for unrecognized items', 'AI (Claude) untuk item yang tidak dikenali'],
+  'se.aiHint': ['Keywords are tried first. AI is only used for items that match no keyword or history. Needs internet and an API key from console.anthropic.com (paid per use, separate from a Claude subscription). The key stays on this device and is sent directly to Anthropic.', 'Kata kunci dicoba dulu. AI hanya dipakai untuk item yang tidak cocok dengan kata kunci atau riwayat. Butuh internet dan API key dari console.anthropic.com (berbayar per pemakaian, terpisah dari langganan Claude). Kunci disimpan hanya di perangkat ini dan dikirim langsung ke Anthropic.'],
+  'se.apiKey': ['Claude API key', 'API key Claude'],
+  'se.aiWhen': ['When to use AI', 'Kapan AI dipakai'],
+  'se.aiBtn': ['When I tap "Ask AI"', 'Saat saya tekan tombol "Tanya AI"'],
+  'se.aiAuto': ['Automatically after notes are processed', 'Otomatis setelah catatan diproses'],
+  'se.keySaved': ['API key saved.', 'API key disimpan.'],
+  'se.pin': ['App lock (PIN)', 'Kunci aplikasi (PIN)'],
+  'se.pinOn': ['Ask for a 6-digit PIN when the app opens', 'Minta PIN 6 digit saat aplikasi dibuka'],
+  'se.pinAfter': ['Lock again after being away for', 'Kunci lagi setelah ditinggal'],
+  'se.s90': ['90 seconds', '90 detik'],
+  'se.m2': ['2 minutes', '2 menit'],
+  'se.m5': ['5 minutes', '5 menit'],
+  'se.pinChange': ['Change PIN', 'Ubah PIN'],
+  'se.pinHint': ['3 wrong PINs = wait 5 minutes. Forgot PIN = the data on this device must be erased and restored from a backup. There is no shortcut, so back up regularly.', 'PIN salah 3 kali = tunggu 5 menit. Lupa PIN = data di perangkat ini harus dihapus, lalu dipulihkan dari backup. Tidak ada jalan pintas, jadi pastikan backup rutin.'],
+  'se.pinOnT': ['PIN enabled.', 'PIN aktif.'],
+  'se.pinOffT': ['PIN disabled.', 'PIN dimatikan.'],
+  'se.pinChanged': ['PIN changed.', 'PIN diganti.'],
+  'se.reading': ['Reading amounts', 'Pembacaan angka'],
+  'se.smallK': ['Numbers under {k} without a unit are thousands (coffee 35 → {v})', 'Angka di bawah {k} tanpa satuan dianggap ribuan (kopi 35 → {v})'],
+  'se.learned': ['Category correction history: {n} entries.', 'Riwayat koreksi kategori: {n} entri.'],
+  'se.clearLearned': ['Clear history', 'Hapus riwayat'],
+  'se.clearLearnedQ': ['Clear all category corrections?', 'Hapus semua riwayat koreksi kategori?'],
+  'se.backup': ['Backup', 'Backup data'],
+  'se.never': ['Never backed up', 'Belum pernah backup'],
+  'se.lastAgo': ['Last backup {n} days ago', 'Backup terakhir {n} hari lalu'],
+  'se.onlyHere': ['Data only lives on this device. Share a backup now.', 'Data hanya ada di perangkat ini. Bagikan backup sekarang.'],
+  'se.last': ['Last backup: {v}. A reminder appears here (and a red dot on Settings) after 7 days.', 'Backup terakhir: {v}. Pengingat muncul di sini (dan titik merah di menu Pengaturan) kalau lewat 7 hari.'],
+  'se.neverLower': ['never', 'belum pernah'],
+  'se.daysAgo': ['{d} ({n} days ago)', '{d} ({n} hari lalu)'],
+  'se.share': ['Share backup (Gmail, WhatsApp, Drive…)', 'Bagikan backup (Gmail, WhatsApp, Drive…)'],
+  'se.download': ['Download backup', 'Download backup'],
+  'se.restore': ['Restore backup', 'Restore backup'],
+  'se.reset': ['Erase all data', 'Hapus semua data'],
+  'se.backupHint': ['The .txt file holds all your financial data, unencrypted. Send it only to your own email or Drive. Data lives only on this device; clearing Chrome data deletes it. Saved months: {m}.', 'File .txt berisi seluruh data keuangan Anda tanpa enkripsi. Kirim hanya ke email atau Drive milik sendiri. Data hanya tersimpan di perangkat ini; jika data Chrome dihapus, data ikut hilang. Bulan tersimpan: {m}.'],
+  'se.restoreQ': ['Restore will replace all data on this device. Continue?', 'Restore akan mengganti semua data di perangkat ini. Lanjut?'],
+  'se.restored': ['Backup restored.', 'Backup dipulihkan.'],
+  'se.failed': ['Failed: {e}', 'Gagal: {e}'],
+  'se.resetQ': ['Erase ALL data (transactions, budget, categories)? This cannot be undone.', 'Hapus SEMUA data (transaksi, budget, kategori)? Tidak bisa dibatalkan.'],
+  'se.erased': ['All data erased.', 'Semua data dihapus.'],
+  'se.about': ['About', 'Tentang aplikasi'],
+  'se.version': ['Catatan Finansial version {v}', 'Catatan Finansial versi {v}'],
+  'se.history': ['Version history', 'Riwayat versi'],
+  // backup
+  'bk.dl': ['Backup saved to Downloads.', 'Backup tersimpan di folder Download.'],
+  'bk.shared': ['Backup shared.', 'Backup dibagikan.'],
+  'bk.shareFail': ['Sharing failed: {e}', 'Gagal membagikan: {e}'],
+  'bk.noShare': ["This device can't share. Backup downloaded.", 'Perangkat ini tidak mendukung share. Backup diunduh.'],
+  'bk.title': ['Catatan Finansial backup', 'Backup Catatan Finansial'],
+  // kunci PIN
+  'lk.enter': ['Enter PIN', 'Masukkan PIN'],
+  'lk.create': ['Create a 6-digit PIN', 'Buat PIN 6 digit'],
+  'lk.repeat': ['Repeat the new PIN', 'Ulangi PIN baru'],
+  'lk.mismatch': ["PINs don't match. Start again.", 'PIN tidak sama. Ulangi dari awal.'],
+  'lk.wrong': ['Wrong PIN. {n} tries left.', 'PIN salah. Sisa {n} kali percobaan.'],
+  'lk.locked': ['Wrong PIN 3 times. Try again in {t}', 'PIN salah 3 kali. Coba lagi dalam {t}'],
+  'lk.cancel': ['Cancel', 'Batal'],
+  'lk.forgot': ['Forgot PIN?', 'Lupa PIN?'],
+  'lk.current': ['Enter current PIN', 'Masukkan PIN saat ini'],
+  'lk.old': ['Enter old PIN', 'Masukkan PIN lama'],
+  'lk.new': ['Create new PIN', 'Buat PIN baru'],
+  'lk.del': ['Delete', 'Hapus'],
+  'lk.forgotQ1': ['Forgot PIN?\n\nThe only way: ALL data on this device is erased, then you restore it from a backup file (Settings → Restore backup).', 'Lupa PIN?\n\nSatu-satunya cara: SEMUA data di perangkat ini dihapus, lalu Anda pulihkan dari file backup (Pengaturan → Restore backup).'],
+  'lk.forgotQ2': ['Are you sure? Transactions, budget and categories on this device will be permanently deleted.', 'Yakin? Transaksi, budget, dan kategori di perangkat ini akan dihapus permanen.'],
+  // export Excel
+  'ex.summary': ['Summary', 'Ringkasan'],
+  'ex.transactions': ['Transactions', 'Transaksi'],
+  'ex.month': ['Month', 'Bulan'],
+  'ex.income': ['Income', 'Pemasukan'],
+  'ex.totalExp': ['Total expenses', 'Total Pengeluaran'],
+  'ex.balance': ['Balance', 'Saldo'],
+  'ex.savingRatio': ['Saving ratio', 'Saving Ratio'],
+  'ex.date': ['Date', 'Tanggal'],
+  'ex.category': ['Category', 'Kategori'],
+  'ex.item': ['Item', 'Item'],
+  'ex.desc': ['Description', 'Keterangan'],
+  'ex.amount': ['Amount (Rp)', 'Jumlah (Rp)'],
+  'ex.loadFail': ['Could not load the Excel module.', 'Gagal memuat modul Excel.'],
+};
+
+/** Terjemahkan kunci, dengan pengganti {nama}. */
+export function t(key, vars) {
+  const pair = D[key];
+  let s = pair ? pair[lang === 'id' ? 1 : 0] : key;
+  if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+  return s;
+}
+
+// ---------- angka & tanggal ----------
+export const groupDigits = (digits) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, group);
+
+export function rp(n, { sign = false } = {}) {
+  const v = Math.round(Number(n) || 0);
+  const s = groupDigits(String(Math.abs(v)));
+  if (v < 0) return `-Rp${s}`;
+  return `${sign && v > 0 ? '+' : ''}Rp${s}`;
+}
+
+/** Angka untuk kolom isian (tanpa "Rp"); kosong bila 0. */
+export const fmtInput = (n) => (n ? groupDigits(String(Math.round(Number(n)))) : '');
+
+export const pct = (v, digits = 1) => (v == null ? '–' : `${(v * 100).toFixed(digits).replace('.', decimalSep())}%`);
+
+export function monthLabel(key) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
+}
+export function shortMonth(key) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'short' });
+}
+export const fmtDate = (d, opts) => new Date(d).toLocaleDateString(locale(), opts);

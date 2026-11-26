@@ -3,7 +3,7 @@ import * as store from './store.js';
 import { exportExcel } from './export.js';
 import { categorizeWithAI } from './ai.js';
 import * as lock from './lock.js';
-import { APP_VERSION, CHANGELOG } from './version.js';
+import { APP_VERSION } from './version.js';
 import {
   t, setLang, getLang, setNumberFormat, groupSep, groupDigits, rp, fmtInput, pct, monthLabel, shortMonth, fmtDate,
 } from './i18n.js';
@@ -452,7 +452,7 @@ function renderInput() {
         <b>${t('in.rec')}</b> ${recItems.length ? `<span class="chip ${filled ? 'ok' : ''}">${filled ? t('in.recFilled', { d: esc(filled) }) : t('in.recNot')}</span>` : ''}
         <div class="sub">${recItems.length ? recItems.map(esc).join(' · ') : t('in.recNone')}</div>
       </div>
-      <button class="btn" id="recurBtn">${t('in.recBtn')}</button>
+      <div class="row"><button class="btn ghost sm" id="recurManage">${t('in.recManage')}</button><button class="btn" id="recurBtn">${t('in.recBtn')}</button></div>
     </div>
     <div class="card">
       <div class="row"><b>${t('in.paste')}</b><span class="spacer"></span><button class="btn ghost sm" id="clearBtn">${t('in.clear')}</button><button class="btn sm" id="pasteBtn">${t('in.fromClip')}</button></div>
@@ -461,7 +461,10 @@ function renderInput() {
       <p class="hint">${t('in.formatHint')}</p>
       <div class="row"><span class="sub" id="lineCount">${t('in.lines', { n: lines })}</span><span class="spacer"></span><button class="btn primary" id="parseBtn">${t('in.process')}</button></div>
     </div>
-    <button class="btn ghost" id="manualBtn">${t('in.manual')}</button>`;
+    <div class="card rut">
+      <div><b>${t('in.single')}</b><div class="sub">${t('in.singleSub')}</div></div>
+      <button class="btn" id="manualBtn">${t('in.singleBtn')}</button>
+    </div>`;
 
   const ta = $('#notesText', el);
   ta.addEventListener('input', () => {
@@ -486,6 +489,7 @@ function renderInput() {
     maybeAutoAI();
   };
   $('#manualBtn', el).onclick = () => openTxDialog(null);
+  $('#recurManage', el).onclick = () => { ui.openCat = null; ui.editCat = null; setView('budget'); toast(t('in.recHow'), 5000); };
   $('#recurBtn', el).onclick = startRecurring;
 }
 
@@ -903,13 +907,11 @@ function renderSettings() {
 
     <div class="card version">
       <h3>${t('se.about')}</h3>
-      <p><b>${t('se.version', { v: APP_VERSION })}</b></p>
-      <details><summary>${t('se.history')}</summary>
-        ${CHANGELOG.map((v) => `<p><b>${v.v}</b> · ${esc(v.date)}<br><small>${(getLang() === 'id' ? v.id : v.en).map(esc).join('<br>')}</small></p>`).join('')}
-      </details>
+      <div class="row"><b>${t('se.version', { v: APP_VERSION })}</b><span class="spacer"></span><button class="btn sm" id="checkUpdate">${t('se.check')}</button></div>
       <div class="row danger-zone"><span class="spacer"></span><button class="btn ghost sm danger" id="reset">${t('se.reset')}</button></div>
     </div>`;
 
+  $('#checkUpdate', el).onclick = checkForUpdate;
   $('#langSel', el).onchange = (e) => { st.settings.lang = e.target.value; store.save(); applyPrefs(); applyStaticText(); render(); };
   $('#numSel', el).onchange = (e) => { st.settings.numberFormat = e.target.value; store.save(); applyPrefs(); render(); };
   $$('[data-exp]', el).forEach((b) => (b.onclick = async () => {
@@ -958,6 +960,29 @@ function renderSettings() {
     store.save();
     toast(t('se.erased')); render();
   };
+}
+
+// ---------- cek pembaruan ----------
+async function checkForUpdate(e) {
+  const btn = e?.currentTarget;
+  if (btn) { btn.disabled = true; btn.textContent = t('se.checking'); }
+  try {
+    const src = await (await fetch(`js/version.js?t=${Date.now()}`, { cache: 'no-store' })).text();
+    const latest = (src.match(/APP_VERSION\s*=\s*'([^']+)'/) || [])[1];
+    if (!latest) throw new Error('no version');
+    if (latest === APP_VERSION) {
+      toast(t('se.upToDate', { v: APP_VERSION }));
+    } else {
+      toast(t('se.updating', { v: latest }), 4000);
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update().catch(() => {});
+      setTimeout(() => location.reload(), 1200);
+      return;
+    }
+  } catch {
+    toast(t('se.checkFail'));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = t('se.check'); }
 }
 
 // ---------- init ----------
